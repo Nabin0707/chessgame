@@ -36,7 +36,7 @@ export function constructMetadata({
             title: pageTitle,
             description,
             images: [image],
-            creator: "@biterdevs",
+            creator: "@ai-chess-platform",
         },
         icons,
         metadataBase: new URL(SITE_CONFIG.url),

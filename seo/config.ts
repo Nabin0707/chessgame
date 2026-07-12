@@ -1,18 +1,19 @@
 export const SITE_CONFIG = {
-  name: "BiterDevs Template",
-  description: "A premium Next.js template provided by BiterDevs.",
-  url: "https://your-domain.com", // Replace with your actual domain
+  name: "AI Chess Platform",
+  description: "An AI-powered chess experience with Stockfish engine analysis and Gemini-powered commentary.",
+  url: "https://ai-chess.vercel.app",
   ogImage: "/og-image.png",
   links: {
-    twitter: "https://twitter.com/biterdevs",
-    github: "https://github.com/biterdevs",
+    twitter: "https://twitter.com/ai-chess-platform",
+    github: "https://github.com/ai-chess-platform",
   },
   keywords: [
-    "Next.js",
-    "React",
-    "Tailwind CSS",
-    "Server Components",
-    "BiterDevs",
+    "chess",
+    "AI chess",
+    "Stockfish",
+    "chess analysis",
+    "chess platform",
+    "Gemini chess",
   ],
 };
 
