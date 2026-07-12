@@ -20,6 +20,7 @@ interface ChessSidebarProps {
   gameStatus: GameStatus;
   onNewGame: () => void;
   onUndo: () => void;
+  isAwaitingEngineMove?: boolean;
 }
 
 export function ChessSidebar({
@@ -28,8 +29,9 @@ export function ChessSidebar({
   gameStatus,
   onNewGame,
   onUndo,
+  isAwaitingEngineMove = false,
 }: ChessSidebarProps) {
-  const canUndo = moveHistory.length > 0;
+  const canUndo = moveHistory.length > 0 && !isAwaitingEngineMove;
   const isGameOver = gameStatus.kind !== "playing" && gameStatus.kind !== "check";
 
   return (

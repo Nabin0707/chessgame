@@ -14,12 +14,14 @@ interface ChessBoardContainerProps {
   className?: string;
   fen: string;
   onMove: (from: string, to: string) => boolean;
+  disabled?: boolean;
 }
 
 export function ChessBoardContainer({
   className,
   fen,
   onMove,
+  disabled = false,
 }: ChessBoardContainerProps) {
   const handlePieceDrop = useCallback(
     (args: { sourceSquare: string; targetSquare: string | null }) => {
@@ -39,7 +41,7 @@ export function ChessBoardContainer({
           options={{
             position: fen,
             boardOrientation: "white",
-            allowDragging: true,
+            allowDragging: !disabled,
             showNotation: true,
             onPieceDrop: handlePieceDrop,
           }}
