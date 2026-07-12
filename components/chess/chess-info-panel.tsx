@@ -8,11 +8,17 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+import type { GameStatus } from "@/types/chess";
+
 interface ChessInfoPanelProps {
   className?: string;
+  gameStatus: GameStatus;
 }
 
-export function ChessInfoPanel({ className }: ChessInfoPanelProps) {
+export function ChessInfoPanel({
+  className,
+  gameStatus,
+}: ChessInfoPanelProps) {
   return (
     <aside
       className={cn("flex flex-col gap-4", className)}
@@ -20,7 +26,7 @@ export function ChessInfoPanel({ className }: ChessInfoPanelProps) {
     >
       <AICommentaryCard />
       <EvaluationCard />
-      <GameStatusCard />
+      <GameStatusCard status={gameStatus} />
     </aside>
   );
 }
@@ -33,7 +39,7 @@ function AICommentaryCard() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          AI-powered commentary will appear here during the game.
+          AI commentary will be available in a future milestone.
         </p>
       </CardContent>
     </Card>
@@ -48,24 +54,67 @@ function EvaluationCard() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          Engine evaluation will appear here once Stockfish is connected.
+          Stockfish evaluation will be available in a future milestone.
         </p>
       </CardContent>
     </Card>
   );
 }
 
-function GameStatusCard() {
+interface GameStatusCardProps {
+  status: GameStatus;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  playing: "Playing",
+  check: "Check!",
+  checkmate: "Checkmate",
+  stalemate: "Stalemate",
+  draw: "Draw",
+};
+
+function GameStatusCard({ status }: GameStatusCardProps) {
+  const label = STATUS_LABELS[status.kind] ?? status.kind;
+
+  const details = formatStatusDetail(status);
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">Game Status</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground">
-          Waiting for game to start.
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium">{label}</p>
+          {details && (
+            <p className="text-sm text-muted-foreground">{details}</p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
+}
+
+function formatStatusDetail(status: GameStatus): string {
+  switch (status.kind) {
+    case "playing":
+      return status.turn === "w" ? "White to move" : "Black to move";
+    case "check":
+      return status.turn === "w" ? "White is in check" : "Black is in check";
+    case "checkmate":
+      return status.winner === "w"
+        ? "White wins by checkmate!"
+        : "Black wins by checkmate!";
+    case "stalemate":
+      return "The game is a stalemate.";
+    case "draw": {
+      const reasons: Record<string, string> = {
+        "insufficient-material": "Insufficient material",
+        "threefold-repetition": "Threefold repetition",
+        "fifty-move-rule": "Fifty-move rule",
+        agreement: "Draw by agreement",
+      };
+      return reasons[status.reason] ?? "Draw";
+    }
+  }
 }
