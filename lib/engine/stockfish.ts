@@ -38,7 +38,12 @@ function logStep(dir: "→" | "←", msg: string): void {
   console.log(`[ENGINE ${dir}] ${ts} #${stepCounter} ${msg}`);
 }
 
-const WORKER_URL = "/stockfish/worker.js";
+/**
+ * URL of the Stockfish Web Worker script provided by the stockfish
+ * npm package (nmrugg/stockfish.js).  This file IS the worker — it
+ * speaks raw UCI over the Worker postMessage / onmessage channel.
+ */
+const WORKER_URL = "/stockfish/stockfish.js";
 
 /**
  * High-level API for communicating with Stockfish via a Web Worker.
@@ -70,16 +75,6 @@ export function createEngine() {
       }
     } else {
       logStep("←", line);
-    }
-
-    // Log Worker-level errors (from our enhanced worker.js) even if
-    // no active callbacks exist.
-    if (line.startsWith("__worker_error__") || line.startsWith("__worker_unhandled__")) {
-      console.error("[ENGINE WORKER]", line);
-      if (currentCallbacks?.onError) {
-        currentCallbacks.onError(line.slice(line.indexOf(" ") + 1));
-      }
-      return;
     }
 
     if (!currentCallbacks) {
@@ -125,7 +120,19 @@ export function createEngine() {
 
     logStep("→", `new Worker("${WORKER_URL}")`);
     worker = new Worker(WORKER_URL);
+
     worker.addEventListener("message", handleMessage);
+
+    // Catch Worker-level errors that might not show up elsewhere
+    worker.addEventListener("error", (ev) => {
+      logStep("←", `WORKER 'error' EVENT: ${ev.message}`);
+    });
+
+    // Catch unhandled rejections inside the Worker
+    worker.addEventListener("messageerror", (ev) => {
+      logStep("←", `WORKER 'messageerror' EVENT`);
+    });
+
     return worker;
   }
 
@@ -139,40 +146,57 @@ export function createEngine() {
     return new Promise((resolve, reject) => {
       const w = ensureWorker();
 
-      // Temporarily override so we can catch "uciok" or a Worker error
+      // First, test if the Worker is alive by sending a special message
+      // that stockfish.js responds to immediately, even before init.
+      // If we get "info WillOutputEngineDownloadProgress", the Worker is alive.
+      let workerResponded = false;
+
       const initHandler = (event: MessageEvent) => {
         const line = String(event.data);
+
+        // Liveness check: the Worker responds to this immediately
+        if (line === "info WillOutputEngineDownloadProgress") {
+          workerResponded = true;
+          logStep("←", "← Worker is ALIVE (download progress check)");
+          return;
+        }
+
         if (line === "uciok") {
           w.removeEventListener("message", initHandler);
           isReady = true;
           logStep("←", "← resolve(initialize) — engine ready");
           resolve();
-        } else if (line.startsWith("__worker_error__") || line.startsWith("__worker_unhandled__")) {
-          const msg = line.slice(line.indexOf(" ") + 1);
-          logStep("←", `WORKER ERROR: ${msg}`);
-          // Don't reject yet — wait for the Worker error event to fire too.
-          // But log it loudly in case the browser catches it.
         }
       };
 
       w.addEventListener("message", initHandler);
       w.addEventListener("error", (err) => {
         w.removeEventListener("message", initHandler);
-        const message = err.message || "Stockfish Worker failed to load";
-        logStep("←", `WORKER ERROR EVENT: ${message}`);
-        reject(new Error(message));
+        logStep("←", `WORKER ERROR EVENT: ${err.message}`);
+        reject(new Error(err.message || "Stockfish Worker failed to load"));
       });
 
-      logStep("→", "uci");
-      w.postMessage("uci");
+      // Send liveness test message
+      logStep("→", 'setoption name CanOutputEngineDownloadProgress');
+      w.postMessage("setoption name CanOutputEngineDownloadProgress");
 
-      // Safety timeout — if Stockfish hasn't responded in 30 seconds,
-      // reject so we don't hang forever.
+      // Small delay then send uci
+      setTimeout(() => {
+        logStep("→", "uci");
+        w.postMessage("uci");
+      }, 100);
+
+      // Intermediate diagnostic at 15s
+      setTimeout(() => {
+        logStep("←", `INTERMEDIATE (15s) — workerResponded=${workerResponded} isReady=${isReady}`);
+      }, 15000);
+
+      // Safety timeout — 30 seconds
       setTimeout(() => {
         w.removeEventListener("message", initHandler);
         if (!isReady) {
-          logStep("←", "TIMEOUT — no uciok after 30s");
-          reject(new Error("Stockfish initialization timed out — check browser console for Worker errors"));
+          logStep("←", `TIMEOUT — no uciok after 30s (workerResponded=${workerResponded})`);
+          reject(new Error("Stockfish initialization timed out — " + (workerResponded ? "Worker alive but engine not ready" : "Worker did not respond at all")));
         }
       }, 30000);
     });
@@ -191,9 +215,10 @@ export function createEngine() {
   ): void {
     const w = ensureWorker();
 
+    const depth = options.depth ?? 18;
     logStep(
       "→",
-      `evaluate() depth=${options.depth ?? 18}${options.movetime ? ` movetime=${options.movetime}` : ""} hasOnBestMove=${!!callbacks.onBestMove} hasOnEval=${!!callbacks.onEval}`,
+      `evaluate() depth=${depth}${options.movetime ? ` movetime=${options.movetime}` : ""} hasOnBestMove=${!!callbacks.onBestMove} hasOnEval=${!!callbacks.onEval}`,
     );
 
     // Stop any running search
@@ -208,7 +233,6 @@ export function createEngine() {
     w.postMessage(`position fen ${fen}`);
 
     // Start search
-    const depth = options.depth ?? 18;
     if (options.movetime) {
       logStep("→", `go movetime ${options.movetime}`);
       w.postMessage(`go movetime ${options.movetime}`);

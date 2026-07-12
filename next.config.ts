@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Ensure WASM files get the correct Content-Type
   async headers() {
     return [
       {
@@ -12,19 +13,12 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Cross-Origin Isolation — required for SharedArrayBuffer used by
-      // Stockfish's pthread build. Without these headers the WASM module's
-      // shared memory (and web worker thread pool) won't function.
       {
-        source: "/(.*)",
+        source: "/stockfish/(.*)\\.wasm",
         headers: [
           {
-            key: "Cross-Origin-Opener-Policy",
-            value: "same-origin",
-          },
-          {
-            key: "Cross-Origin-Embedder-Policy",
-            value: "require-corp",
+            key: "Content-Type",
+            value: "application/wasm",
           },
         ],
       },

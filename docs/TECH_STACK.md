@@ -16,7 +16,7 @@
 |---|---|---|
 | **chess.js** | Move generation, validation, FEN/PGN parsing | Gold standard for chess in JS. Lightweight, no dependencies, isomorphic. |
 | **react-chessboard** | Board UI (pieces, drag-and-drop, squares) | Most popular React chess board. Handles piece rendering, drag, drop, and touch. |
-| **stockfish.wasm** | Chess engine (WebAssembly) | Strongest open-source engine. WASM runs in-browser, no server needed. |
+| **stockfish** (v18, nmrugg) | Chess engine (WebAssembly, single-threaded) | Strongest open-source engine. Lite single-threaded WASM build (~7 MB) via nmrugg/stockfish.js. No pthreads, no SharedArrayBuffer, no special headers. |
 
 **Architecture**: chess.js is the *source of truth* for game state. The board component dispatches user interactions to chess.js via Zustand. Stockfish receives positions from chess.js and returns evaluations — it never modifies game state.
 
@@ -63,10 +63,9 @@ These dependencies will be added during development (Milestone 1):
 ```bash
 npm install chess.js react-chessboard zustand framer-motion
 npm install @google/generative-ai
-# Stockfish WASM — exact package TBD, options:
-npm install stockfish.wasm          # or
-npm install @mliebelt/stockfish.wasm
 ```
+
+**Note**: Stockfish is already installed as `stockfish` v18 (nmrugg). No additional engine packages needed.
 
 ## Development Tooling
 
@@ -93,7 +92,7 @@ npm install @mliebelt/stockfish.wasm
 |---|---|
 | **Redux** | Too much boilerplate. Zustand covers all our needs with less code |
 | **Context API** | Causes unnecessary re-renders. Zustand selectors are more efficient |
-| **Server-side chess engine** | Adds latency, cost, and complexity. Stockfish WASM runs locally |
+| **Server-side chess engine** | Adds latency, cost, and complexity. Stockfish runs locally in a Web Worker |
 | **Database** | No user data stored in MVP. Local storage suffices |
 | **Next.js API Routes** | No backend needed for core play. Future: auth, sync, multiplayer |
 | **Redis / Cache** | Not needed until multiplayer or cloud sync is added |

@@ -35,7 +35,7 @@ npm run test:e2e      # Playwright E2E tests
 | Framework | Next.js 16 (App Router), React 19 |
 | Language | TypeScript 5 (strict mode) |
 | Styling | Tailwind CSS v4, shadcn/ui (New York), CVA, lucide-react |
-| Chess | chess.js, react-chessboard, stockfish.wasm |
+| Chess | chess.js, react-chessboard, stockfish (v18, nmrugg) |
 | AI | @google/generative-ai (Gemini API) |
 | State | Zustand (sliced by domain) |
 | Animation | Framer Motion |
@@ -52,6 +52,84 @@ npm run test:e2e      # Playwright E2E tests
 - **Gemini NEVER decides chess moves.** Gemini provides context, commentary, and analysis — never moves.
 - **Never modify Stockfish evaluation output.** Display it as-is. No handicapping, no adjusting.
 - **Stockfish runs in a Web Worker.** Never on the main thread.
+
+### Stockfish Integration (nmrugg/stockfish.js v18)
+
+**Package:** [`stockfish`](https://www.npmjs.com/package/stockfish) by nmrugg (Stockfish 18, lite-single build)
+
+**Build used:** `stockfish-18-lite-single` — single-threaded, ~7 MB WASM, no COOP/COEP headers needed, no SharedArrayBuffer required. The lite build is recommended: "far stronger than any human will ever be."
+
+**Engine files (auto-copied to `public/stockfish/` via `scripts/copy-stockfish.mjs`):**
+- `stockfish.js` (Worker entry point — IS the worker script itself)
+- `stockfish.wasm` (WASM binary)
+
+**Worker URL:** `/stockfish/stockfish.js` (served as static asset by Next.js)
+
+**Communication protocol — Raw UCI over Worker messages:**
+```
+Main thread                        Worker (stockfish.js)
+    │                                    │
+    │── postMessage("uci") ──────────────→│
+    │←── onmessage("uciok") ←─────────────│
+    │── postMessage("isready") ──────────→│
+    │←── onmessage("readyok") ←───────────│
+    │── postMessage("position fen ...") →│
+    │── postMessage("go depth 15") ─────→│
+    │←── onmessage("info score cp 45") ←─│
+    │←── onmessage("bestmove e2e4") ←────│
+    │── postMessage("stop") ────────────→│
+```
+
+**Available Stockfish builds (in `node_modules/stockfish/bin/`):**
+| Build | Size | Threads | Requires COOP/COEP |
+|---|---|---|---|
+| `stockfish-18` | 108 MB | Multi | ✅ Yes |
+| `stockfish-18-single` | 108 MB | Single | ❌ No |
+| `stockfish-18-lite` | 7 MB | Multi | ✅ Yes |
+| `stockfish-18-lite-single` | 7 MB | Single | ❌ No |
+| `stockfish-18-asm` | 11 MB | Single | ❌ No (no WASM) |
+| `stockfish-18-lite-single` is the CURRENT choice. |
+
+**How the Worker works (stockfish.js internals):**
+- The `.js` file IS the worker — create with `new Worker("/stockfish/stockfish.js")`
+- On load, it auto-detects Worker context, fetches the WASM binary (same directory), compiles Stockfish
+- Commands received via `worker.onmessage` are queued in `r[]` until Stockfish is ready
+- After initialization (`_isReady()` returns true), queued commands are processed
+- Stockfish output forwarded via `postMessage(line)` back to main thread
+- The file also doubles as a Node.js CLI binary (via `scripts/cli.js`)
+
+**Progress reporting:** The Worker supports optional download progress:
+```javascript
+// Before sending UCI commands, send this to opt in:
+worker.postMessage("setoption name CanOutputEngineDownloadProgress");
+// Worker responds: "info WillOutputEngineDownloadProgress"
+```
+
+**Engine bridge: `lib/engine/stockfish.ts`**
+- `createEngine()` → returns `{ initialize, evaluate, getBestMove, stop, dispose, ready }`
+- Worker is created lazily (on first command), not on page load
+- `EngineCallbacks` pattern: `onEval`, `onBestMove`, `onReady`, `onError`
+- `SearchOptions`: `{ depth?: number, movetime?: number }`
+- Depth defaults to 18, can be overridden per-call
+- The bridge uses a single Worker with rotating `currentCallbacks` so stale search results are dropped
+  when a new search starts before the previous one finishes
+
+**Scripts:**
+- `node scripts/copy-stockfish.mjs` — copies engine files from `node_modules/stockfish/bin/` to `public/stockfish/`
+- Runs automatically via `postinstall` (after `npm install`) and `dev` script
+- Defined in `package.json` as: `"postinstall": "node scripts/copy-stockfish.mjs"` and `"dev": "node scripts/copy-stockfish.mjs && next dev"`
+
+**Stockfish directory (public/stockfish/):**
+```
+public/stockfish/
+  stockfish.js    # Worker script (auto-copied, 21 KB)
+  stockfish.wasm  # WASM binary (auto-copied, 7 MB)
+```
+
+**If you need to switch builds** (e.g., to multi-threaded), update these files:
+1. `scripts/copy-stockfish.mjs` — change the source paths to the desired build
+2. `next.config.ts` — add COOP/COEP headers for SharedArrayBuffer (multi-threaded only)
+3. `CLAUDE.md` — update this section
 
 ### AI Integration Rules (CRITICAL)
 - **Gemini output must be validated** before reaching the UI. Reject any response containing UCI notation or algebraic moves.
@@ -77,11 +155,12 @@ npm run test:e2e      # Playwright E2E tests
 - **Loading, empty, and error states** are required for every data-driven component.
 
 ### Performance Guidelines
-- **Stockfish WASM loaded lazily** (on first analysis, not page load).
+- **Stockfish Worker created lazily** (on first engine call, not page load via `ensureWorker()`).
 - **Gemini SDK loaded lazily** (on first chat/commentary trigger).
 - **Board component memoized** with `React.memo`.
 - **Zustand selectors optimized** — use shallow equality for object selectors.
-- **Stockfish pauses when tab is hidden** (visibilitychange).
+- **Stockfish pauses when tab is hidden** (visibilitychange — `worker.postMessage("stop")` on tab hide).
+- **WASM binary is 7 MB** (lite-single build) — loads in ~1-3 seconds on modern connections.
 - **Lighthouse score 90+** target.
 
 ### Documentation Requirements

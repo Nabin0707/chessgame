@@ -27,7 +27,7 @@
 │  │  ┌────────┴───────────────────────┴─────────┐                  │  │
 │  │  │  lib/engine/ (Stockfish Bridge)          │                  │  │
 │  │  │  ┌────────────────────────────────────┐  │                  │  │
-│  │  │  │  Web Worker (stockfish.wasm)       │  │                  │  │
+│  │  │  │  Web Worker (nmrugg/stockfish.js)   │  │                  │  │
 │  │  │  │  Separate thread, no DOM access    │  │                  │  │
 │  │  │  └────────────────────────────────────┘  │                  │  │
 │  │  └──────────────────────────────────────────┘                  │  │
@@ -80,7 +80,7 @@ sequenceDiagram
     participant Store as Zustand GameStore
     participant Chess as lib/chess/engine.ts
     participant SF as lib/engine/stockfish.ts
-    participant Worker as Stockfish WASM
+    participant Worker as Stockfish Worker
     participant Gemini as lib/ai/gemini.ts
 
     User->>Board: Drag piece to square
@@ -100,8 +100,7 @@ sequenceDiagram
 
         par Stockfish Analysis
             Store->>SF: setPosition(newFen)
-            SF->>Worker: position fen <newFen>
-            SF->>Worker: go depth 18
+            SF->>Worker: uci\nposition fen <newFen>\ngo depth 18
             Worker-->>SF: info score cp ... pv ...
             SF-->>Store: Update engineStore (eval, bestLine)
             Store-->>Board: Update eval bar
@@ -123,14 +122,14 @@ sequenceDiagram
     participant Panel as AnalysisPanel
     participant Store as AnalysisStore
     participant SF as lib/engine/analysis
-    participant Worker as Stockfish WASM
+    participant Worker as Stockfish Worker
 
     User->>Panel: Open analysis for completed game
     Panel->>Store: startAnalysis(pgn)
 
     loop Each Move
         Store->>SF: setPosition(fenForMoveN)
-        SF->>Worker: go depth 22 multi_pv 3
+        SF->>Worker: uci\nposition fen ...\ngo depth 22 multi_pv 3
         Worker-->>SF: PV1, PV2, PV3 scores + lines
         SF-->>Store: { eval, bestLine, alternatives }
         Store-->>Panel: Show eval for move N
@@ -182,29 +181,36 @@ graph TD
 
 ## Web Worker Architecture
 
-Stockfish runs in a dedicated Web Worker to avoid blocking the main thread.
+Stockfish runs in a dedicated Web Worker (nmrugg/stockfish.js) to avoid blocking the main thread. The Worker script auto-detects it's in a Worker context, fetches the WASM binary from the same directory, and initializes Stockfish. Communication is via raw UCI text strings over `postMessage`/`onmessage`.
 
 ```
-Main Thread                          Web Worker
-────────────                         ──────────
-                                     stockfish.wasm loaded
-                                     UCI "uciok" received
+Main Thread                          Web Worker (nmrugg/stockfish.js)
+────────────                         ──────────────────────────────
+                                     Worker created from
+                                     /stockfish/stockfish.js
+                                     Auto-fetches stockfish.wasm
+                                     Initializes Stockfish engine
+                                     Sends "uciok" when ready
 
 lib/engine/stockfish.ts               Worker
   │                                     │
-  ├── postMessage("position fen ...")──►│  Parse UCI position
-  ├── postMessage("go depth 18")──────►│  Start search
+  ├── worker.postMessage("uci")───────►│  Initialize UCI mode
+  ├── worker.postMessage("isready")───►│  Check if ready → "readyok"
+  ├── worker.postMessage("position    │  Set board position
+  │    fen rnbqkbnr/pppppppp/8/...")──►│
+  ├── worker.postMessage("go depth    │  Start search at depth 18
+  │    18")───────────────────────────►│
   │                                     │
-  │                                     ├── info depth 1 ...
-  │                                     ├── info depth 2 ...
-  │                                     │  (every node evaluated
-  │  onmessage ◄───────────────────────┤   on a separate thread)
+  │                                     ├── info depth 1 score cp ...
+  │                                     ├── info depth 2 score cp ...
+  │                                     │  (every node evaluated)
+  │  onmessage ◄───────────────────────┤
   │  ├── Parse "info depth 18 score    │
   │  │    cp 45 pv e2e4 e7e5 ..."      │
   │  ├── Update engineStore.eval       │
   │  └── Re-render eval bar            │
   │                                     │
-  ├── postMessage("stop")─────────────►│  Halt search
+  ├── worker.postMessage("stop")──────►│  Halt search
   │                                     └── bestmove e2e4
   │
   User makes move ────────────────────►  New position → repeat

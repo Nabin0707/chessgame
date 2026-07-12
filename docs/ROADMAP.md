@@ -16,7 +16,7 @@
 
 - [ ] Rename project from "ckcleaning" to "ai-chess-platform"
 - [ ] Update `SITE_CONFIG` with real name, URL, description
-- [ ] Install dependencies: chess.js, react-chessboard, zustand, @google/generative-ai, framer-motion, stockfish.wasm
+- [ ] Install dependencies: chess.js, react-chessboard, zustand, @google/generative-ai, framer-motion, stockfish (nmrugg)
 - [ ] Move code into `src/` directory layout
 - [ ] Update `tsconfig.json` paths for `src/` structure
 - [ ] Update ESLint config with custom rules
@@ -112,9 +112,9 @@
 ### Milestone 8: Stockfish Web Worker Bridge
 ⏱ 3 days
 
-- [ ] Install stockfish.wasm
+- [ ] Stockfish is installed as `stockfish` v18 (nmrugg). Copy `stockfish-18-lite-single.js` to `public/stockfish/` via automated postinstall script.
 - [ ] Create `lib/engine/stockfish.ts`:
-  - `initEngine()` — instantiate Worker
+  - `initEngine()` — instantiate Worker from `/stockfish/stockfish.js`
   - `setPosition(fen)` — send UCI position command
   - `goSearch(options)` — depth, time, infinite
   - `stop()` — halt search
@@ -292,7 +292,7 @@
 ⏱ 2 days
 
 - [ ] Bundle analysis and optimization
-- [ ] Code-split Stockfish WASM (load on first analysis, not page load)
+- [ ] Code-split Stockfish Worker (load on first analysis, not page load; Worker creation is lazy)
 - [ ] Lazy-load Gemini SDK (load when user opens chat)
 - [ ] Memoize board components (React.memo, useMemo for legal moves)
 - [ ] Virtualize move history (if > 100 moves)
@@ -376,9 +376,9 @@
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Stockfish WASM fails on some browsers | Low | High | Fallback to simpler engine or server-side analysis |
+| Stockfish WASM fails on some browsers | Low | High | Use single-threaded lite build (nmrugg) — no pthreads/SharedArrayBuffer needed. Covers all modern browsers. Fallback to server-side analysis if needed. |
 | Gemini API costs exceed budget | Medium | Medium | Cache responses, rate-limit, offer tiers |
 | Web Worker not supported | Low | Medium | Polyfill or inline execution |
-| Large WASM binary (slow load) | Medium | Medium | Lazy-load, show loading state, compress |
+| Large WASM binary (~7 MB lite) | Medium | Medium | Lazy-load Worker, show loading state, compress; lite build is smaller than full build (~100 MB) |
 | Prompt injection → Gemini outputs a move | Low | Critical | Output guardrails, validate response before rendering |
 | chess.js performance with 100+ move game | Low | Low | Limit history length, virtualize |

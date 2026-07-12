@@ -52,7 +52,7 @@ https://preview.ai-chess.com   # Preview/staging (future)
       ]
     },
     {
-      "source": "/stockfish.wasm",
+      "source": "/stockfish/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -134,31 +134,22 @@ const nextConfig = {
 
 ---
 
-## Stockfish WASM Deployment
+## Stockfish Deployment
 
-Stockfish WASM binary (~2-5 MB) needs special handling:
+Stockfish runs via the `stockfish` npm package (nmrugg/stockfish.js v18) — single-threaded lite WASM build (~7 MB). The Worker script and WASM binary are copied from `node_modules/stockfish/bin/` to `public/stockfish/` via an automated postinstall script (`scripts/copy-stockfish.mjs`).
 
-```typescript
-// next.config.ts
-const nextConfig = {
-  webpack: (config, { isServer }) => {
-    // Ensure WASM files are handled correctly
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        path: false,
-      };
-    }
-    return config;
-  },
-  // Allow WASM files to be served
-  experimental: {
-    outputFileTracingIncludes: {
-      '/*': ['./node_modules/stockfish.wasm/**/*'],
-    },
-  },
-};
+**Key points:**
+- No webpack configuration needed for WASM — files are plain static assets in `public/`
+- No COOP/COEP headers required — single-threaded build avoids pthreads and SharedArrayBuffer
+- Worker is created via `new Worker("/stockfish/stockfish.js")` — the `.js` file IS the Worker
+- The Worker auto-fetches `stockfish.wasm` from its own directory
+- Both files get aggressive caching (`Cache-Control: public, max-age=31536000, immutable`)
+
+**Serving files:**
+```
+public/stockfish/
+├── stockfish.js     # The Worker script (21 KB)
+└── stockfish.wasm   # The WASM binary (7 MB)
 ```
 
 ---
@@ -287,7 +278,7 @@ jobs:
 - [ ] Rate limiting configured (Gemini API)
 - [ ] Lighthouse audit passed (90+)
 - [ ] Mobile testing completed (iOS Safari, Android Chrome)
-- [ ] Stockfish WASM tested in target browsers
+- [ ] Stockfish Worker tested in target browsers (nmrugg single-threaded build — no special headers needed)
 - [ ] PWA manifest configured (future)
 - [ ] 404 page customized
 - [ ] `vercel.json` configured with headers
