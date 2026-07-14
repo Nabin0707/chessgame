@@ -92,9 +92,16 @@ function EvaluationCard({
         )}
 
         {status === "error" && (
-          <p className="text-sm text-destructive">
-            {errorMessage ?? "Engine failed to load"}
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-destructive">
+              {errorMessage ?? "Engine failed to load"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {errorMessage?.includes("Worker did not respond") || errorMessage?.includes("failed to load")
+                ? "If using Brave, try turning Shields off for this site (click the lion icon in the URL bar)."
+                : "Try refreshing the page."}
+            </p>
+          </div>
         )}
 
         {status === "ready" && !score && !isThinking && (

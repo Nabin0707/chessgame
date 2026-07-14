@@ -196,7 +196,7 @@ export function createEngine() {
         w.removeEventListener("message", initHandler);
         if (!isReady) {
           logStep("←", `TIMEOUT — no uciok after 30s (workerResponded=${workerResponded})`);
-          reject(new Error("Stockfish initialization timed out — " + (workerResponded ? "Worker alive but engine not ready" : "Worker did not respond at all")));
+          reject(new Error("Stockfish initialization timed out — " + (workerResponded ? "Worker alive but engine not ready. If using Brave, try turning Shields off." : "Worker did not respond at all. Check that /stockfish/stockfish.wasm is accessible.")));
         }
       }, 30000);
     });
