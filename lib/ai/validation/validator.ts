@@ -275,7 +275,7 @@ export function validateTextResponse(
   if (validatorConfig.enableSanitization) {
     const cleaned = validatorConfig.autoFix && passed
       ? sanitize(raw, validatorConfig.sanitizer)
-      : sanitize(raw, { ...validatorConfig.sanitizer, stripAlgebraicMoves: false, stripUCI: false, stripFEN: false, stripPGN: false });
+      : sanitize(raw, { ...validatorConfig.sanitizer, stripAlgebraicMoves: false, stripUCI: false, stripFEN: false, stripPGN: false, stripMoveSuggestions: false });
     if (cleaned !== raw) {
       sanitized = cleaned;
       wasSanitized = true;

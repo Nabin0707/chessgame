@@ -47,7 +47,7 @@ export const DEFAULT_DETECTOR_CONFIG: DetectorConfig = {
 const ALGEBRAIC_MOVE_PATTERNS: DetectionPattern[] = [
   // Full algebraic: Nf3, Qxd8+, Rae1, O-O, O-O-O
   {
-    pattern: /\b([KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](=[QRBN])?[+#]?)\b/g,
+    pattern: /\b([KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](=[QRBN])?(?:[+#])?(?!\w))/g,
     label: "Full algebraic move",
     code: "ALGEBRAIC_MOVE_FULL",
     severity: "error",
@@ -65,7 +65,7 @@ const ALGEBRAIC_MOVE_PATTERNS: DetectionPattern[] = [
   },
   // Disambiguated moves: Nbd2, Qh4e7
   {
-    pattern: /\b[KQRBN][a-h]?[1-8]?[a-h][1-8](?:=[QRBN])?[+#]?\b/g,
+    pattern: /\b[KQRBN][a-h]?[1-8]?[a-h][1-8](?:=[QRBN])?(?:[+#])?(?!\w)/g,
     label: "Disambiguated move",
     code: "ALGEBRAIC_MOVE_DISAMBIG",
     severity: "error",
@@ -74,7 +74,7 @@ const ALGEBRAIC_MOVE_PATTERNS: DetectionPattern[] = [
   },
   // Pawn moves with capture: exd5, cxb5
   {
-    pattern: /\b[a-h]x[a-h][1-8](?:=[QRBN])?[+#]?\b/g,
+    pattern: /\b[a-h]x[a-h][1-8](?:=[QRBN])?(?:[+#])?(?!\w)/g,
     label: "Pawn capture",
     code: "ALGEBRAIC_MOVE_PAWN_CAPTURE",
     severity: "error",

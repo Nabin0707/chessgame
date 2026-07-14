@@ -151,7 +151,7 @@ describe("generateFallbackMessage", () => {
       severity: "fatal",
       message: "Validation failed",
     });
-    expect(result).toContain("let's focus on the board");
+    expect(result).toContain("Let's focus on the board");
   });
 
   it("returns formatting fallback for formatting errors", () => {

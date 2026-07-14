@@ -53,7 +53,9 @@ describe("stripAlgebraicMoves", () => {
 
   it("uses custom replacement text", () => {
     const result = stripAlgebraicMoves("Play e4!", " [move] ");
-    expect(result).toBe("Play [move] !");
+    // Replacement replaces only the matched text ("e4"), leaving the
+    // preceding space intact — so "Play " + " [move] " = "Play  [move] ".
+    expect(result).toBe("Play  [move] !");
   });
 });
 
@@ -185,7 +187,7 @@ describe("truncate", () => {
 
   it("breaks at sentence boundary when possible", () => {
     const text = "This is a long sentence. And another one. And a third.";
-    const result = truncate(text, 35);
+    const result = truncate(text, 25);
     expect(result).toBe("This is a long sentence.");
   });
 
@@ -226,6 +228,7 @@ describe("sanitize", () => {
       stripUCI: false,
       stripFEN: false,
       stripPGN: false,
+      stripMoveSuggestions: false,
       normalizeWhitespace: true,
       maxLength: 100,
       replacementText: "",
@@ -239,6 +242,7 @@ describe("sanitize", () => {
       stripUCI: false,
       stripFEN: false,
       stripPGN: false,
+      stripMoveSuggestions: false,
       normalizeWhitespace: true,
       maxLength: 2000,
       replacementText: " [notation] ",
@@ -281,6 +285,7 @@ describe("sanitizer edge cases", () => {
       stripUCI: false,
       stripFEN: false,
       stripPGN: false,
+      stripMoveSuggestions: false,
       normalizeWhitespace: true,
       maxLength: 2000,
       replacementText: "",

@@ -115,6 +115,8 @@ export interface SanitizerConfig {
   stripFEN: boolean;
   /** Whether to strip PGN. */
   stripPGN: boolean;
+  /** Whether to strip move suggestion language (e.g. "you should play"). */
+  stripMoveSuggestions: boolean;
   /** Whether to normalise whitespace (trim, collapse). */
   normalizeWhitespace: boolean;
   /** Maximum length of the response in characters. */

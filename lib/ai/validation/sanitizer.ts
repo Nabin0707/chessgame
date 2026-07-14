@@ -36,6 +36,7 @@ export const DEFAULT_SANITIZER_CONFIG: SanitizerConfig = {
   stripUCI: true,
   stripFEN: true,
   stripPGN: true,
+  stripMoveSuggestions: true,
   normalizeWhitespace: true,
   maxLength: 2000,
   replacementText: "",
@@ -55,12 +56,12 @@ export function stripAlgebraicMoves(
   let result = text.replace(/\bO-O(?:-O)?\b/g, replacement);
   // Disambiguated + standard moves
   result = result.replace(
-    /\b[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[+#]?\b/g,
+    /\b[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?(?:[+#])?(?!\w)/g,
     replacement,
   );
   // Pawn captures
   result = result.replace(
-    /\b[a-h]x[a-h][1-8](?:=[QRBN])?[+#]?\b/g,
+    /\b[a-h]x[a-h][1-8](?:=[QRBN])?(?:[+#])?(?!\w)/g,
     replacement,
   );
   return result;
@@ -150,7 +151,7 @@ export function normalizeWhitespace(text: string): string {
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
-    .replace(/^\s+|\s+$/gm, "")
+    .replace(/^[ \t]+|[ \t]+$/gm, "")
     .trim();
 }
 
@@ -197,6 +198,9 @@ export function sanitize(
   }
   if (config.stripPGN) {
     result = stripPGN(result, config.replacementText);
+  }
+  if (config.stripMoveSuggestions) {
+    result = stripMoveSuggestions(result, config.replacementText);
   }
   if (config.normalizeWhitespace) {
     result = normalizeWhitespace(result);
