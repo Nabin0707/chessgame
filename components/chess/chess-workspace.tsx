@@ -8,6 +8,8 @@ import { ChessBoardContainer } from "@/components/chess/chess-board-container";
 import { ChessInfoPanel } from "@/components/chess/chess-info-panel";
 import { ChessFooter } from "@/components/chess/chess-footer";
 
+import type { CommentaryState } from "@/components/chess/chess-info-panel";
+
 import {
   createGame,
   resetGame,
@@ -64,6 +66,95 @@ export function ChessWorkspace() {
   const [isAwaitingEngineMove, setIsAwaitingEngineMove] = useState(false);
   const pendingEngineMoveRef = useRef(false);
   const engineMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* ── Commentary state ────────────────────────────────────────────── */
+
+  const [commentaryState, setCommentaryState] = useState<CommentaryState>({
+    kind: "idle",
+  });
+
+  /* ── Generate commentary via API ─────────────────────────────────── */
+
+  const commentaryFenRef = useRef<string | null>(null);
+
+  const generateCommentary = useCallback(async () => {
+    const currentFen = getFen(gameRef.current);
+    const currentHistory = getMoveHistory(gameRef.current);
+    const currentStatus = getGameStatus(gameRef.current);
+    const lastRecord = currentHistory[currentHistory.length - 1];
+
+    if (!lastRecord) {
+      console.log("[COMMENTARY] no last move, skipping");
+      return;
+    }
+
+    const payload = {
+      fen: currentFen,
+      lastMove: lastRecord.san,
+      moveNumber: Math.ceil(currentHistory.length / 2),
+      playerColor: currentStatus.turn === "w" ? "b" : "w",
+      moveHistory: currentHistory,
+      evalScore: null,
+      evalDepth: 18,
+      gamePhase: deriveGamePhase(currentHistory.length),
+      inCheck:
+        currentStatus.kind === "check" ||
+        ("inCheck" in currentStatus && currentStatus.inCheck),
+      isGameOver:
+        currentStatus.kind === "checkmate" ||
+        currentStatus.kind === "stalemate" ||
+        currentStatus.kind === "draw",
+    };
+
+    console.log("[COMMENTARY] sending request:", JSON.stringify(payload, null, 2));
+
+    setCommentaryState({ kind: "loading" });
+    commentaryFenRef.current = currentFen;
+
+    try {
+      const res = await fetch("/api/ai/commentary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      console.log("[COMMENTARY] response status:", res.status, res.statusText);
+
+      const data = await res.json();
+      console.log("[COMMENTARY] response body:", JSON.stringify(data, null, 2));
+
+      if (data.success) {
+        console.log("[COMMENTARY] success:", data.commentary?.slice(0, 80));
+        setCommentaryState({
+          kind: "success",
+          text: data.commentary,
+          reactions: data.reactions ?? [],
+          tip: data.tip,
+        });
+      } else if (
+        data.fallback ===
+        "AI commentary is not configured. Keep playing!"
+      ) {
+        console.log("[COMMENTARY] unconfigured — no API key set on server");
+        setCommentaryState({ kind: "unconfigured" });
+      } else {
+        console.log("[COMMENTARY] fallback:", data.fallback, "error:", data.error);
+        if (data.debug) console.log("[COMMENTARY] raw debug text:", data.debug);
+        setCommentaryState({ kind: "error" });
+      }
+    } catch (err) {
+      console.error("[COMMENTARY] fetch failed:", err);
+      setCommentaryState({ kind: "error" });
+    }
+  }, []);
+
+  /* ── Derive game phase from move count ───────────────────────────── */
+
+  function deriveGamePhase(moveCount: number): string {
+    if (moveCount <= 10) return "opening";
+    if (moveCount <= 40) return "midgame";
+    return "endgame";
+  }
 
   const boardDisabled = isAwaitingEngineMove || isGameOver;
 
@@ -194,9 +285,12 @@ export function ChessWorkspace() {
         pendingEngineMoveRef.current = false;
       }
 
+      // Generate AI commentary after the player's move
+      generateCommentary();
+
       return true;
     },
-    [triggerEngineMove],
+    [triggerEngineMove, generateCommentary],
   );
 
   /* ── Handle new game ─────────────────────────────────────────────── */
@@ -308,6 +402,8 @@ export function ChessWorkspace() {
           engineStatus={engineStatus}
           engineErrorMessage={engineErrorMessage}
           isAwaitingEngineMove={isAwaitingEngineMove}
+          commentaryState={commentaryState}
+          onRetryCommentary={generateCommentary}
         />
       </div>
 

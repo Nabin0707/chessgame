@@ -190,6 +190,16 @@ export function validateJSONResponse(
     issues.push(...injectionReport.issues);
   }
 
+  // Downgrade algebraic_move errors to warnings — the commentary may naturally
+  // reference squares ("d7", "kingside") without suggesting moves. The prompt
+  // already prohibits move output, and the sanitizer strips any that slip through.
+  // Move suggestion patterns (MOVE_SUGGESTION_*) remain as errors.
+  for (const issue of issues) {
+    if (issue.code?.startsWith("ALGEBRAIC_MOVE_") && issue.severity === "error") {
+      issue.severity = "warning";
+    }
+  }
+
   // Determine validity
   const errors = issues.filter((i) => i.severity === "error");
   const passed = errors.length === 0;

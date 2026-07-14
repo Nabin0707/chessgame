@@ -1,8 +1,8 @@
 # AI Architecture & Guidelines — AI Chess Platform
 
-> **Status:** Foundation Complete (Milestone 7) + Validation Pipeline (Milestone 8)  
-> **Gemini Integration:** NOT YET IMPLEMENTED — Types, interfaces, and validation pipeline are defined; the API client comes in a future milestone.  
-> **Related:** `lib/ai/`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`
+> **Status:** Foundation Complete (Milestone 7) + Validation Pipeline (Milestone 8) + Gemini Integration (Milestone 9)  
+> **Gemini Integration:** ✅ Complete — Server-side Gemini client with Next.js Route Handler, prompt builder, validation pipeline integration, and full UI integration. See `lib/ai/gemini/` and `app/api/ai/commentary/route.ts`.  
+> **Related:** `lib/ai/`, `lib/ai/gemini/`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`
 
 ---
 

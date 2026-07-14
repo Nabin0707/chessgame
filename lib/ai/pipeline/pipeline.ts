@@ -27,6 +27,7 @@ import type {
   StageHandler,
   StageResult,
 } from "./types";
+import type { CommentResponse, ChatResponse } from "@/lib/ai/types";
 import { DEFAULT_PIPELINE_CONFIG } from "./types";
 import { validationStage, sanitizationStage, formattingStage } from "./stages";
 import { classifyError, generateChatFallback, generateFallbackMessage } from "./error";
@@ -163,8 +164,19 @@ export async function runPipeline(
   // Success: return formatted response
   const usedFallback = !!(validationStageResult && !validationStageResult.success);
 
+  // Try to parse the raw response as JSON for the response field
+  let parsedResponse: CommentResponse | ChatResponse | undefined;
+  if (context.responseFormat === "json") {
+    try {
+      parsedResponse = JSON.parse(context.rawResponse) as CommentResponse | ChatResponse;
+    } catch {
+      // Not valid JSON — response field stays undefined
+    }
+  }
+
   return {
     success: true,
+    response: parsedResponse,
     usedFallback,
     validation: {
       valid: true,

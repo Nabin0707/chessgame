@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Milestone 9: Gemini AI Commentary (Production Foundation) — live AI commentary after every player move
+  - Gemini module (`lib/ai/gemini/`): `client.ts`, `service.ts`, `types.ts`, `index.ts`, `README.md`
+  - Server-side API route at `app/api/ai/commentary/route.ts` (Next.js POST handler)
+  - `@google/genai` SDK wrapper with retry logic (exponential backoff: 1s, 2s, 4s), timeout (10s default), and error normalisation
+  - Prompt builder with system constraints (7 rules: no moves, no UCI, no FEN, no PGN, no engine lines, no prompt leaks, no filtering mentions)
+  - Game phase detection: opening (≤10 moves), midgame (≤40), endgame (>40)
+  - Validation pipeline integration — every Gemini response runs through `processCommentary()` before reaching the UI
+  - Graceful degradation: fallback messages per game phase (opening / midgame / endgame)
+  - `AICommentaryCard` with 5 UI states: idle, loading, success (with emoji reactions + tip), error (with retry button), unconfigured
+  - `.env.example` updated: `GEMINI_API_KEY` (server-side only, never `NEXT_PUBLIC_`), optional `GEMINI_MODEL`
+  - API key guard: returns unconfigured fallback if `GEMINI_API_KEY` is missing — no crash, no error page
+  - Milestone report: `reports/MILESTONE_09_SUMMARY.md`
 - Milestone 8: AI Validation & Response Pipeline — output validation middleware for Gemini responses
   - Schema validation: Zod schemas for `CommentResponse`, `ChatResponse`, `PostGameSummary`
   - Injection detection: 7 pattern categories (algebraic moves, UCI, FEN, PGN, suggestions, partials, prohibited terms)
@@ -35,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `ResponseParser`, `GradeExtractor`
   - Comprehensive documentation: `docs/AI_GUIDELINES.md` with Mermaid pipeline diagrams
   - Milestone report: `reports/MILESTONE_07_REPORT.md`
+
+### Security
+- Gemini API key (`GEMINI_API_KEY`) is now server-side only via Next.js Route Handler — never exposed to the browser
+- All Gemini API calls go through `app/api/ai/commentary/route.ts` which reads the key from `process.env`
+- The `@google/genai` SDK is never imported in browser code — only in `lib/ai/gemini/client.ts` (server context)
 
 ### Foundation
 - Initialize Next.js 16 project with TypeScript, Tailwind CSS v4, and shadcn/ui

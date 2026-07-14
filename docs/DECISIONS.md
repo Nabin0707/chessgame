@@ -763,3 +763,46 @@ Define two separate interfaces:
 - `lib/ai/types/index.ts` — `ConversationTranscript`
 - `lib/ai/memory/types.ts` — `ConversationMemory`, `ConversationMemoryConfig`
 - `docs/AI_GUIDELINES.md` — Memory System section
+
+---
+
+## ADR-023: Server-Side Gemini API Key via Next.js Route Handler
+
+- **Status:** Accepted
+- **Category:** SEC
+- **Date:** 2026-07-14
+- **Supersedes:** ADR-005 (partial — adds a server-side API route for Gemini only)
+
+### Context
+
+Gemini API keys must be kept secret. ADR-005 stated the MVP is "100% client-side" and that "Gemini runs via browser SDK." However, the browser SDK requires the API key to be sent to the client, which is a security risk. Embedding the key via `NEXT_PUBLIC_GEMINI_API_KEY` would expose it to anyone inspecting the page source or network requests.
+
+### Decision
+
+Add a single Next.js Route Handler (`app/api/ai/commentary/route.ts`) as a thin proxy between the browser and Gemini. The API key lives in `process.env.GEMINI_API_KEY` (server-side only, never `NEXT_PUBLIC_`). The `@google/genai` SDK is imported ONLY in `lib/ai/gemini/client.ts`, which the Route Handler calls via `lib/ai/gemini/service.ts`. The browser never imports the SDK or sees the key.
+
+### Alternatives Considered
+
+| Option | Reason Against |
+|---|---|
+| Browser SDK with `NEXT_PUBLIC_GEMINI_API_KEY` | Exposes the API key in client bundle and network tab. Anyone can steal it. |
+| Next.js server actions | More complex than a Route Handler for a single POST endpoint. Actions are for mutations with revalidation; this is a pure fetch. |
+| Dedicated backend (Node/Fastify) | Adds infrastructure cost and deployment complexity for a single proxy endpoint. Route Handler costs nothing extra on Vercel. |
+| Vercel Edge Functions | Faster cold start, but Gemini SDK uses Node.js APIs. Edge runtime would require a different SDK path. |
+
+### Consequences
+
+- API key is never exposed to the browser — inspectable only on the server
+- Single Route Handler is the only Gemini entry point — straightforward to monitor, rate-limit, and log
+- Adds ~10-50ms latency per commentary request (HTTP round-trip + server-side processing)
+- Partially breaks ADR-005's "100% client-side" claim — but only for the Gemini feature, which requires network anyway
+- Works on Vercel's serverless plan with zero additional infrastructure
+- Retry and timeout logic live in the client wrapper, not the Route Handler — keeps the handler thin
+
+### References
+
+- `app/api/ai/commentary/route.ts` — Route Handler implementation
+- `lib/ai/gemini/client.ts` — SDK wrapper with retry + timeout
+- `lib/ai/gemini/service.ts` — Service orchestrator
+- `.env.example` — GEMINI_API_KEY variable documentation
+- `docs/SECURITY.md` — API key security model

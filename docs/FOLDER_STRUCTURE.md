@@ -220,7 +220,7 @@ src/
 | `components/shared/` | Reusable UI patterns | Yes | Loading, empty, error states |
 | `lib/chess/` | Chess logic | No | Pure functions, chess.js wrapper |
 | `lib/engine/` | Stockfish bridge | No | Web Worker communication |
-| `lib/ai/` | AI foundation architecture | No | Types, personalities, prompts, memory, context, formatter, validation, pipeline — interfaces only (no Gemini SDK yet) |
+| `lib/ai/` | AI foundation architecture | No | Types, personalities, prompts, memory, context, formatter, validation, pipeline, gemini — full commentary system |
 | `lib/store/` | Zustand state | No | Store definitions only |
 | `hooks/` | React hooks | Yes | Bridge logic to UI |
 | `types/` | TypeScript types | No | Shared across all modules |

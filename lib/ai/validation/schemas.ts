@@ -113,6 +113,7 @@ export const CommentResponseSchema = z.object({
   tip: z
     .string()
     .max(500, "Tip exceeds maximum length")
+    .nullable()
     .optional(),
 
   /** Follow-up questions the player can ask. */

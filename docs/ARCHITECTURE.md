@@ -261,7 +261,7 @@ flowchart LR
 | **Personalities as data, not code** | Each personality is a plain object conforming to an interface. Adding one means adding a file entry, not a class. |
 | **ConversationTranscript ≠ ConversationMemory** | Pipeline data shapes (`Transcript`) are kept separate from storage shapes (`Memory`). Prompt builders never see `maxMessages` config. |
 | **ADR-006: three-layer defence** | L1 — prompt constraints (Milestone 7, `templates.ts`). L2 — output validation + pipeline (Milestone 8, `validation/` + `pipeline/`). L3 — monitoring (future). |
-| **No Gemini code yet** | Milestones 7–8 are interfaces and validation only. Gemini SDK integration, API client, and real API calls begin in a future milestone. |
+| **Gemini integration complete** | Milestone 9 adds `lib/ai/gemini/` (SDK wrapper, prompt builder, service orchestrator), `app/api/ai/commentary/route.ts` (server-side proxy), and UI integration. All Gemini responses pass through the validation pipeline. |
 
 ### Personality System
 

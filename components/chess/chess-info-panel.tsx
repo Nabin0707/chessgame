@@ -1,16 +1,25 @@
 "use client";
 
+import { useCallback } from "react";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatEval } from "@/types/engine";
 
 import type { GameStatus } from "@/types/chess";
 import type { EvalScore } from "@/types/engine";
+
+export type CommentaryState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; text: string; reactions: string[]; tip?: string }
+  | { kind: "error" }
+  | { kind: "unconfigured" };
 
 interface ChessInfoPanelProps {
   className?: string;
@@ -20,6 +29,8 @@ interface ChessInfoPanelProps {
   engineStatus: "idle" | "loading" | "ready" | "error";
   engineErrorMessage: string | null;
   isAwaitingEngineMove?: boolean;
+  commentaryState: CommentaryState;
+  onRetryCommentary?: () => void;
 }
 
 export function ChessInfoPanel({
@@ -30,13 +41,18 @@ export function ChessInfoPanel({
   engineStatus,
   engineErrorMessage,
   isAwaitingEngineMove = false,
+  commentaryState,
+  onRetryCommentary,
 }: ChessInfoPanelProps) {
   return (
     <aside
       className={cn("flex flex-col gap-4", className)}
       aria-label="Game information"
     >
-      <AICommentaryCard />
+      <AICommentaryCard
+        state={commentaryState}
+        onRetry={onRetryCommentary}
+      />
       <EvaluationCard
         score={evalScore}
         isThinking={evalIsThinking}
@@ -51,16 +67,73 @@ export function ChessInfoPanel({
   );
 }
 
-function AICommentaryCard() {
+interface AICommentaryCardProps {
+  state: CommentaryState;
+  onRetry?: () => void;
+}
+
+function AICommentaryCard({ state, onRetry }: AICommentaryCardProps) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">AI Commentary</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground">
-          AI commentary will be available in a future milestone.
-        </p>
+        {state.kind === "idle" && (
+          <p className="text-sm text-muted-foreground">
+            Make a move to see AI commentary.
+          </p>
+        )}
+
+        {state.kind === "loading" && (
+          <div className="flex items-center gap-2">
+            <span className="inline-block size-3 animate-pulse rounded-full bg-primary" />
+            <p className="text-sm text-muted-foreground">
+              Analysing your move…
+            </p>
+          </div>
+        )}
+
+        {state.kind === "success" && (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1">
+              {state.reactions.map((emoji, i) => (
+                <span key={i} className="text-lg" role="img" aria-label="reaction">
+                  {emoji}
+                </span>
+              ))}
+            </div>
+            <p className="text-sm">{state.text}</p>
+            {state.tip && (
+              <p className="text-xs text-muted-foreground italic">
+                💡 {state.tip}
+              </p>
+            )}
+          </div>
+        )}
+
+        {state.kind === "error" && (
+          <div className="space-y-2">
+            <p className="text-sm text-destructive">
+              Could not generate commentary.
+            </p>
+            {onRetry && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRetry}
+              >
+                Try again
+              </Button>
+            )}
+          </div>
+        )}
+
+        {state.kind === "unconfigured" && (
+          <p className="text-sm text-muted-foreground">
+            AI commentary requires a Gemini API key to be set on the server.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
