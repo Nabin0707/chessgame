@@ -607,3 +607,93 @@ Adopt a **"client boundary at the lowest possible level"** approach:
 
 - `ARCHITECTURE.md` — Rendering Strategy
 - `CODING_STANDARDS.md` — Component Patterns
+
+---
+
+## ADR-019: AI Submodule Separation — Six Independent Modules Over a Monolithic `lib/ai/`
+
+- **Status:** Accepted
+- **Category:** ARCH
+- **Date:** 2026-07-14
+- **Supersedes:** None
+
+### Context
+
+The AI integration for chess commentary involves multiple distinct responsibilities: defining data shapes, managing personality-driven tone, constructing prompts for Gemini, tracking conversation/game/player memory, assembling context from multiple sources, and formatting/validating Gemini's output.
+
+### Decision
+
+Partition `lib/ai/` into six independent submodules: `types/`, `personalities/`, `prompts/`, `memory/`, `context/`, `formatter/`. Each has a single responsibility, does NOT import from other AI submodules, and exports via `index.ts`.
+
+### Consequences
+
+- Clear dependency direction: `types/` → `personalities/` → `prompts/` → `memory/` → `context/` → `formatter/`
+- Each submodule independently testable
+- Tree-shakeable imports
+
+### References
+
+- `lib/ai/` — All submodule directories
+- `docs/AI_GUIDELINES.md` — Pipeline architecture documentation
+- `reports/MILESTONE_07_REPORT.md` — ADR-019 section
+
+---
+
+## ADR-020: Five Personalities as Data, Not Code
+
+- **Status:** Accepted
+- **Category:** AI
+- **Date:** 2026-07-14
+- **Supersedes:** None
+
+### Context
+
+The platform needs multiple commentary personalities (coach, analyst, hype man, etc.) controlling tone, humour, emoji, and reaction templates.
+
+### Decision
+
+Define personalities as plain data objects conforming to the `Personality` interface. NOT as classes, abstract base classes, or strategy pattern implementations.
+
+### Consequences
+
+- Adding a personality = one plain object + one registry entry
+- Personality data is serialisable — could be loaded from config in the future
+- No runtime polymorphism overhead
+- TypeScript guarantees every `ReactionType` has at least one template
+
+### References
+
+- `lib/ai/personalities/personalities.ts` — All 5 built-in personalities
+- `lib/ai/personalities/types.ts` — `Personality` interface
+- `docs/AI_GUIDELINES.md` — Adding a New Personality section
+
+---
+
+## ADR-021: ConversationTranscript vs ConversationMemory — Pipeline Data vs Storage Shapes
+
+- **Status:** Accepted
+- **Category:** AI
+- **Date:** 2026-07-14
+- **Supersedes:** None
+
+### Context
+
+The same conversation data flows through two contexts: the AI pipeline (context assembly, prompt building, Gemini calls) and memory storage (Zustand/localStorage). The pipeline needs a simple ordered list of messages; storage needs configuration fields like `maxMessages` and `maxAgeMs`.
+
+### Decision
+
+Define two separate interfaces:
+- **`ConversationTranscript`** (in `lib/ai/types/`): pipeline-facing, minimal — `{ messages, createdAt, updatedAt }`
+- **`ConversationMemory`** (in `lib/ai/memory/types/`): storage-facing — extends with `sessionId`, `messageCount`, config fields
+
+### Consequences
+
+- Pipeline code never imports from `lib/ai/memory/`
+- Memory code imports `ConversationTranscript` from `lib/ai/types/`
+- Clear boundary between pipeline data shapes and storage shapes
+
+### References
+
+- `lib/ai/types/index.ts` — `ConversationTranscript`
+- `lib/ai/memory/types.ts` — `ConversationMemory`, `ConversationMemoryConfig`
+- `docs/AI_GUIDELINES.md` — Memory System section

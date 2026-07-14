@@ -103,12 +103,34 @@ src/
 │   │   ├── analysis.ts                #    Multi-variation analysis
 │   │   ├── worker.ts                  #    Web Worker entry (separate chunk)
 │   │   └── types.ts                   #    Engine types
-│   ├── ai/                             # Gemini bridge (NO React imports)
-│   │   ├── gemini.ts                   #    Gemini API client
-│   │   ├── prompts.ts                  #    Prompt templates (constrained)
-│   │   ├── commentary.ts              #    Commentary pipeline orchestration
-│   │   ├── validation.ts              #    Output validation (reject moves)
-│   │   └── types.ts                   #    AI response types
+│   ├── ai/                             # AI foundation architecture (NO React imports)
+│   │   ├── index.ts                   #    Public API re-exports
+│   │   ├── README.md                  #    Module overview
+│   │   ├── types/                     #    Core type definitions (interfaces + unions)
+│   │   │   ├── index.ts              #      30+ exported types
+│   │   │   └── README.md             #      Types submodule doc
+│   │   ├── personalities/            #    Commentary personality system
+│   │   │   ├── types.ts             #      Personality, Tone, EmojiStyle, ReactionTemplates
+│   │   │   ├── personalities.ts     #      5 built-in personalities (Coach, Analyst, et al.)
+│   │   │   ├── index.ts             #      Re-exports
+│   │   │   └── README.md            #      Personalities submodule doc
+│   │   ├── prompts/                  #    Prompt template system
+│   │   │   ├── types.ts             #      PromptTemplate, PromptCategory, PromptConfig
+│   │   │   ├── templates.ts         #      4 templates + GLOBAL_CONSTRAINTS (ADR-006)
+│   │   │   ├── index.ts             #      Re-exports
+│   │   │   └── README.md            #      Prompts submodule doc
+│   │   ├── memory/                   #    AI memory interfaces
+│   │   │   ├── types.ts             #      ConversationMemory, GameMemory, PlayerMemory
+│   │   │   ├── index.ts             #      Re-exports
+│   │   │   └── README.md            #      Memory submodule doc
+│   │   ├── context/                  #    Context assembly interfaces
+│   │   │   ├── types.ts             #      ContextAssembler, GameContextBuilder, et al.
+│   │   │   ├── index.ts             #      Re-exports
+│   │   │   └── README.md            #      Context submodule doc
+│   │   └── formatter/               #    Output formatting interfaces
+│   │       ├── types.ts             #      CommentaryFormatter, ResponseParser, GradeExtractor
+│   │       ├── index.ts             #      Re-exports
+│   │       └── README.md            #      Formatter submodule doc
 │   ├── store/                          # Zustand stores
 │   │   ├── game-store.ts              #    Game state store
 │   │   ├── engine-store.ts            #    Engine evaluation store
@@ -175,7 +197,7 @@ src/
 | `components/shared/` | Reusable UI patterns | Yes | Loading, empty, error states |
 | `lib/chess/` | Chess logic | No | Pure functions, chess.js wrapper |
 | `lib/engine/` | Stockfish bridge | No | Web Worker communication |
-| `lib/ai/` | Gemini integration | No | API client, prompts, validation |
+| `lib/ai/` | AI foundation architecture | No | Types, personalities, prompts, memory, context, formatter — interfaces only (no Gemini SDK yet) |
 | `lib/store/` | Zustand state | No | Store definitions only |
 | `hooks/` | React hooks | Yes | Bridge logic to UI |
 | `types/` | TypeScript types | No | Shared across all modules |

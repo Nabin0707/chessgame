@@ -216,6 +216,57 @@ lib/engine/stockfish.ts               Worker
   User makes move ────────────────────►  New position → repeat
 ```
 
+## AI Pipeline Architecture
+
+The AI subsystem transforms game events into personality-driven commentary through a pipeline of six independent submodules.
+
+```
+lib/ai/
+│
+├── types/           Core type definitions (unions, contexts, messages, responses)
+├── personalities/   Commentary personality definitions + registry (5 built-in)
+├── prompts/         Prompt templates with ADR-002/ADR-006 constraints
+├── memory/          Conversation, game, and player memory interfaces
+├── context/         Context assemblers → CommentaryContext for prompt builder
+└── formatter/       Output formatting, parsing, grade extraction
+```
+
+### Pipeline Flow
+
+```mermaid
+flowchart LR
+    A[Player Move] --> B[chess.js]
+    B --> C[Stockfish]
+    C --> D[Context Builder]
+    D --> E[Memory Builder]
+    E --> F[Prompt Builder]
+    F --> G[Gemini API]
+    G --> H[Formatter]
+    H --> I[Output Validator]
+    I --> J[Grade Extractor]
+    J --> K[UI Render]
+    
+    style F fill:#f9f,stroke:#333,stroke-width:2px
+    style G fill:#bbf,stroke:#333,stroke-width:2px
+    style I fill:#fbb,stroke:#333,stroke-width:2px
+```
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|---|---|
+| **Six independent submodules** | SOLID single responsibility — types, prompts, memory, personality, context, formatter each owned separately. Any can change without affecting the others. |
+| **Personalities as data, not code** | Each personality is a plain object conforming to an interface. Adding one means adding a file entry, not a class. |
+| **ConversationTranscript ≠ ConversationMemory** | Pipeline data shapes (`Transcript`) are kept separate from storage shapes (`Memory`). Prompt builders never see `maxMessages` config. |
+| **ADR-006 at template level** | `GLOBAL_CONSTRAINTS` (6 rules forbidding move output) are embedded in every prompt template. Layers 2–3 (output validation + monitoring) are future milestones. |
+| **No Gemini code in Milestone 7** | Interfaces only. Gemini SDK integration, API client, and pipeline orchestration begin in Milestone 8. |
+
+### Personality System
+
+Five built-in personalities defined as data objects — The Coach (encouraging/light/gentle), The Analyst (analytical/none/moderate), The Hype Man (dramatic/high/savage), The Stoic (stoic/none/gentle), The Wit (witty/high/moderate). Each controls tone, humour level, aggression, emoji frequency/selection, and reaction templates for 17 event types.
+
+Full documentation: `docs/AI_GUIDELINES.md`
+
 ## Rendering Strategy
 
 | Route | Rendering | Rationale |
