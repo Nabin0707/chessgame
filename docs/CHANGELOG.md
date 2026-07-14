@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Milestone 8: AI Validation & Response Pipeline — output validation middleware for Gemini responses
+  - Schema validation: Zod schemas for `CommentResponse`, `ChatResponse`, `PostGameSummary`
+  - Injection detection: 7 pattern categories (algebraic moves, UCI, FEN, PGN, suggestions, partials, prohibited terms)
+  - Response sanitizer: strip notation, normalise whitespace, smart truncation
+  - Validator orchestrator: parse → schema validate → detect → sanitize pipeline
+  - Score calculation: 100 base, -25 per error, -10 per warning/info, min 0
+  - Fallback generation: personality-aware fallback messages per event type
+  - Pipeline orchestrator: 3-stage processing (validation → sanitization → formatting)
+  - Error classification: fatal (stop + fallback) vs recoverable (continue) vs warning (log)
+  - 6 test files: 120+ test cases across detector, sanitizer, schemas, validator, error, pipeline
+  - Updated `lib/ai/index.ts` with 40+ new exports for validation and pipeline
+  - Comprehensive documentation updates
+  - Milestone report: `reports/MILESTONE_08_REPORT.md`
 - Milestone 7: AI Foundation Architecture — six submodule type system for Gemini integration
   - Core types (30+): `ReactionType`, `GameContext`, `CommentaryContext`, `CommentResponse`,
     `ChatResponse`, `PipelineContext`, `PlayerStats`, and more

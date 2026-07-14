@@ -218,7 +218,7 @@ lib/engine/stockfish.ts               Worker
 
 ## AI Pipeline Architecture
 
-The AI subsystem transforms game events into personality-driven commentary through a pipeline of six independent submodules.
+The AI subsystem transforms game events into personality-driven commentary through a pipeline of six independent submodules, plus a validation and pipeline layer.
 
 ```
 lib/ai/
@@ -228,6 +228,8 @@ lib/ai/
 ├── prompts/         Prompt templates with ADR-002/ADR-006 constraints
 ├── memory/          Conversation, game, and player memory interfaces
 ├── context/         Context assemblers → CommentaryContext for prompt builder
+├── validation/      Response schema validation, injection detection, sanitization (Layer 2)
+├── pipeline/        Response processing pipeline orchestrator
 └── formatter/       Output formatting, parsing, grade extraction
 ```
 
@@ -258,8 +260,8 @@ flowchart LR
 | **Six independent submodules** | SOLID single responsibility — types, prompts, memory, personality, context, formatter each owned separately. Any can change without affecting the others. |
 | **Personalities as data, not code** | Each personality is a plain object conforming to an interface. Adding one means adding a file entry, not a class. |
 | **ConversationTranscript ≠ ConversationMemory** | Pipeline data shapes (`Transcript`) are kept separate from storage shapes (`Memory`). Prompt builders never see `maxMessages` config. |
-| **ADR-006 at template level** | `GLOBAL_CONSTRAINTS` (6 rules forbidding move output) are embedded in every prompt template. Layers 2–3 (output validation + monitoring) are future milestones. |
-| **No Gemini code in Milestone 7** | Interfaces only. Gemini SDK integration, API client, and pipeline orchestration begin in Milestone 8. |
+| **ADR-006: three-layer defence** | L1 — prompt constraints (Milestone 7, `templates.ts`). L2 — output validation + pipeline (Milestone 8, `validation/` + `pipeline/`). L3 — monitoring (future). |
+| **No Gemini code yet** | Milestones 7–8 are interfaces and validation only. Gemini SDK integration, API client, and real API calls begin in a future milestone. |
 
 ### Personality System
 

@@ -127,6 +127,29 @@ src/
 │   │   │   ├── types.ts             #      ContextAssembler, GameContextBuilder, et al.
 │   │   │   ├── index.ts             #      Re-exports
 │   │   │   └── README.md            #      Context submodule doc
+│   │   ├── validation/              #    Response validation (Layer 2 of ADR-006)
+│   │   │   ├── types.ts            #      ValidationOutput, DetectorConfig, SanitizerConfig
+│   │   │   ├── schemas.ts          #      Zod schemas for CommentResponse, ChatResponse, etc.
+│   │   │   ├── detector.ts         #      Prompt injection / chess notation detection
+│   │   │   ├── sanitizer.ts        #      Content stripping and whitespace normalisation
+│   │   │   ├── validator.ts        #      Orchestrator: parse → validate → sanitize
+│   │   │   ├── index.ts            #      Re-exports
+│   │   │   ├── README.md           #      Validation submodule doc
+│   │   │   └── __tests__/          #      Validation tests
+│   │   │       ├── detector.test.ts
+│   │   │       ├── sanitizer.test.ts
+│   │   │       ├── schemas.test.ts
+│   │   │       └── validator.test.ts
+│   │   ├── pipeline/                #    Response processing pipeline
+│   │   │   ├── types.ts            #      ProcessContext, ProcessResult, PipelineConfig
+│   │   │   ├── error.ts            #      Error classification, fallback generation
+│   │   │   ├── stages.ts           #      Validation → Sanitization → Formatting handlers
+│   │   │   ├── pipeline.ts         #      Orchestrator: runPipeline(), processCommentary()
+│   │   │   ├── index.ts            #      Re-exports
+│   │   │   ├── README.md           #      Pipeline submodule doc
+│   │   │   └── __tests__/          #      Pipeline tests
+│   │   │       ├── error.test.ts
+│   │   │       └── pipeline.test.ts
 │   │   └── formatter/               #    Output formatting interfaces
 │   │       ├── types.ts             #      CommentaryFormatter, ResponseParser, GradeExtractor
 │   │       ├── index.ts             #      Re-exports
@@ -197,7 +220,7 @@ src/
 | `components/shared/` | Reusable UI patterns | Yes | Loading, empty, error states |
 | `lib/chess/` | Chess logic | No | Pure functions, chess.js wrapper |
 | `lib/engine/` | Stockfish bridge | No | Web Worker communication |
-| `lib/ai/` | AI foundation architecture | No | Types, personalities, prompts, memory, context, formatter — interfaces only (no Gemini SDK yet) |
+| `lib/ai/` | AI foundation architecture | No | Types, personalities, prompts, memory, context, formatter, validation, pipeline — interfaces only (no Gemini SDK yet) |
 | `lib/store/` | Zustand state | No | Store definitions only |
 | `hooks/` | React hooks | Yes | Bridge logic to UI |
 | `types/` | TypeScript types | No | Shared across all modules |

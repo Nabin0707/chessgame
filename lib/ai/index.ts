@@ -2,7 +2,7 @@
  * ──────────────────────────────────────────────────────────
  * AI Module  —  lib/ai/index.ts
  *
- * Re-exports all public types from the AI subsystem's six
+ * Re-exports all public types from the AI subsystem's eight
  * submodules.  This is the single entry point for consuming
  * AI types across the codebase.
  *
@@ -14,6 +14,8 @@
  *   memory/         — Game, conversation, and player memory interfaces
  *   context/        — Context assemblers for building CommentaryContext
  *   formatter/      — Output formatting, parsing, and validation interfaces
+ *   validation/     — Response schema validation, injection detection, sanitization
+ *   pipeline/       — Response processing pipeline orchestrator
  * ──────────────────────────────────────────────────────────
  */
 
@@ -120,3 +122,97 @@ export type {
   GradeResult,
   ParsedTextResponse,
 } from "@/lib/ai/formatter/types";
+
+/* ─── Validation ─────────────────────────────────────── */
+
+export type {
+  DetectionCategory,
+  DetectionPattern,
+  DetectionResult,
+  DetectorConfig,
+  FallbackConfig,
+  SanitizerConfig,
+  ValidationIssue,
+  ValidationOutput,
+  ValidationReport,
+  ValidationSeverity,
+  ValidatorConfig,
+} from "@/lib/ai/validation/types";
+
+export type { ResponseSchemaCategory } from "@/lib/ai/validation/schemas";
+
+export {
+  detectAlgebraicMoves,
+  detectAll,
+  detectFEN,
+  detectMoveSuggestions,
+  detectPartialMoves,
+  detectPGN,
+  detectUCI,
+  generateReport,
+  scanResponse,
+} from "@/lib/ai/validation/detector";
+
+export {
+  lightSanitize,
+  normalizeWhitespace,
+  sanitize,
+  stripAlgebraicMoves,
+  stripFEN,
+  stripMoveSuggestions,
+  stripPGN,
+  stripUCI,
+  truncate,
+} from "@/lib/ai/validation/sanitizer";
+
+export {
+  CommentResponseSchema,
+  ChatResponseSchema,
+  PostGameSummarySchema,
+  GradeSchema,
+  safeParseJSON,
+  validateAgainstSchema,
+} from "@/lib/ai/validation/schemas";
+
+export {
+  DEFAULT_VALIDATOR_CONFIG,
+  validateJSONResponse,
+  validateTextResponse,
+  getFallbackCommentary,
+  getFallbackChatResponse,
+  getRateLimitMessage,
+  getApiErrorMessage,
+} from "@/lib/ai/validation/validator";
+
+/* ─── Pipeline ───────────────────────────────────────── */
+
+export type {
+  PipelineConfig,
+  PipelineError,
+  ProcessContext,
+  ProcessResult,
+  StageHandler,
+  StageId,
+  StageResult,
+  ErrorCategory,
+  ErrorSeverity,
+} from "@/lib/ai/pipeline/types";
+
+export { DEFAULT_PIPELINE_CONFIG } from "@/lib/ai/pipeline/types";
+
+export {
+  classifyError,
+  formatErrorLog,
+  generateChatFallback,
+  generateFallbackMessage,
+  isFatal,
+  isRecoverable,
+  isWarning,
+} from "@/lib/ai/pipeline/error";
+
+export {
+  runPipeline,
+  processCommentary,
+  processChat,
+  processPostGameSummary,
+} from "@/lib/ai/pipeline/pipeline";

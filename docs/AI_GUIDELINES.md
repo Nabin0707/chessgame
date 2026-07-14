@@ -1,7 +1,7 @@
 # AI Architecture & Guidelines — AI Chess Platform
 
-> **Status:** Foundation Complete (Milestone 7)  
-> **Gemini Integration:** NOT YET IMPLEMENTED — Types and interfaces are defined; the API client and pipeline orchestration come in Milestone 8.  
+> **Status:** Foundation Complete (Milestone 7) + Validation Pipeline (Milestone 8)  
+> **Gemini Integration:** NOT YET IMPLEMENTED — Types, interfaces, and validation pipeline are defined; the API client comes in a future milestone.  
 > **Related:** `lib/ai/`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`
 
 ---
@@ -46,6 +46,8 @@ lib/ai/
 ├── prompts/                     # Prompt templates + system prompt shell
 ├── memory/                      # Game, conversation, and player memory interfaces
 ├── context/                     # Context assemblers for prompt injection
+├── validation/                  # Response schema validation, injection detection, sanitization
+├── pipeline/                    # Response processing pipeline orchestrator
 └── formatter/                   # Output parsing, formatting, grade extraction
 ```
 
@@ -87,7 +89,10 @@ flowchart LR
 | **Prompt Builder** | `lib/ai/prompts/` | Context + memory | `BuiltPrompt` (string) | Render template with personality, constraints, and injected data |
 | **Gemini API** | `lib/ai/gemini.ts` | Prompt string | Raw response string | Call Gemini with prompt, return generated text (NO moves) |
 | **Formatter** | `lib/ai/formatter/` | Raw response | Structured `CommentResponse` | Parse JSON/text, extract fields, clean whitespace |
-| **Output Validator** | `lib/ai/validation.ts` | Structured response | `ValidationResult` | Reject responses containing UCI, algebraic moves, illegal content |
+| **Output Validator** | `lib/ai/validation/validator.ts` | Raw JSON/text response | `ValidationOutput` | Parse JSON, validate schema, detect injection, sanitize (score threshold: 70) |
+| **Injection Detector** | `lib/ai/validation/detector.ts` | Text response | `DetectionResult[]` | Regex scan for 6 categories of prohibited content |
+| **Response Sanitizer** | `lib/ai/validation/sanitizer.ts` | Text response | Cleaned text | Strip notation, normalise whitespace, truncate smartly |
+| **Pipeline Orchestrator** | `lib/ai/pipeline/pipeline.ts` | `ProcessContext` | `ProcessResult` | 3-stage sequence: validation → sanitization → formatting, with fallback |
 | **Grade Extractor** | `lib/ai/formatter/` | Validated response + eval | `GradeResult` | Compute or extract move quality grade |
 | **UI Render** | `components/ai/` | `CommentResponse` | React components | Render commentary bubble, grade badge, tip |
 
@@ -370,18 +375,37 @@ interface CommentaryContext {
 
 ## Output Formatting & Validation
 
-### Formatter Pipeline
+### Validation & Pipeline Architecture
 
-```mermaid
-flowchart LR
-    A[Gemini Raw Response] --> B[Response Parser]
-    B --> C[Emoji Applier]
-    C --> D[Output Validator]
-    D -->|Pass| E[Grade Extractor]
-    D -->|Fail| F[Fallback Commentary]
-    E --> G[Formatted CommentResponse]
-    F --> G
-    G --> H[UI Render]
+The validation and pipeline subsystems implement ADR-006 Layer 2 (post-generation output validation) and provide a resilient orchestration layer between Gemini and the UI.
+
+```
+Gemini Raw Response
+       │
+       ▼
+┌──────────────────┐
+│  Stage 1:        │  ──  JSON parse → schema validation → injection detection
+│  Validation      │      Score: 100 base, -25 per error, -10 per warning, min 0
+│  (validator.ts)  │      Threshold: ≥ 70 passes, < 70 triggers fallback
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│  Stage 2:        │  ──  Strip algebraic/UCI/FEN/PGN notation
+│  Sanitization    │      Normalise whitespace, collapse excessive newlines
+│  (sanitizer.ts)  │      Smart truncation at sentence/word boundary
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│  Stage 3:        │  ──  Parse JSON → CommentResponse | ChatResponse
+│  Formatting      │      On failure: generate personality-aware fallback
+│  (stages.ts)     │      Fallback uses event type + personality templates
+└────────┬─────────┘
+         │
+         ▼
+   ProcessResult
+   (pipeline.ts)
 ```
 
 ### Response Parser
@@ -399,19 +423,25 @@ Three layers of protection against Gemini outputting chess moves:
 | Layer | Mechanism | Implementation |
 |---|---|---|
 | **L1 — Prompt Engineering** | GLOBAL_CONSTRAINTS in every prompt | `lib/ai/prompts/templates.ts` |
-| **L2 — Output Validation** | Regex + heuristic checks on response | `lib/ai/validation.ts` (Milestone 8) |
+| **L2 — Output Validation** | Schema validation + injection detection + sanitization | `lib/ai/validation/` (Milestone 8) |
 | **L3 — Monitoring** | Rate-limit and content anomaly detection | Future Milestone |
 
-The output validator checks for:
-- Algebraic notation (`e4`, `Nf3`, `Qxd8+`, `O-O`)
-- UCI format (`e2e4`, `g1f3`)
-- FEN strings (multiple `/`-separated ranks with digit counts)
-- PGN tags (`[Event ...]`, `[Date ...]`)
-- Move suggestions ("you should play", "consider moving")
+The output validator checks for (via `detector.ts`):
+- Algebraic notation (`e4`, `Nf3`, `Qxd8+`, `O-O`) — 5 sub-patterns
+- UCI format (`e2e4`, `g1f3`) — with optional promotion suffix
+- FEN strings (6-field or board-only partial)
+- PGN tags (`[Event ...]`) and move sequences (`1. e4 e5`)
+- Move suggestions ("you should play", "I recommend", "the best move is")
+- Partial moves (piece+square patterns)
 
-If validation fails:
-- Commentary: Falls back to `FormatterConfig.fallbackCommentary`
-- Chat: Falls back to `FormatterConfig.fallbackChatResponse`
+Score calculation (`validator.ts`):
+- Start at 100, subtract 25 per error-level issue, 10 per warning/info
+- Minimum score: 0. Threshold for pass: ≥ 70 (configurable via `scoreThreshold`)
+
+If validation fails (score < threshold or fatal error):
+- **Commentary:** Uses `getFallbackCommentary()` — picks random template from personality's reaction templates, or falls back to `defaultCommentary`
+- **Chat:** Uses `getFallbackChatResponse()` — returns `defaultChatResponse`
+- **Pipeline:** `runPipeline()` returns `{ success: false, usedFallback: true, fallbackText: "..." }`
 
 ### Grade Extractor
 
@@ -464,7 +494,7 @@ Layer 3: Monitoring (Post-hoc)
 ### Implementation Order
 
 1. ✅ L1 — Prompt constraints (Milestone 7, `lib/ai/prompts/templates.ts`)
-2. ⬜ L2 — Output validation (Milestone 8, `lib/ai/validation.ts`)
+2. ✅ L2 — Output validation (Milestone 8, `lib/ai/validation/`)
 3. ⬜ L3 — Monitoring (Post-MVP)
 
 ---

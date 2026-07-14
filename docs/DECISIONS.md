@@ -669,6 +669,72 @@ Define personalities as plain data objects conforming to the `Personality` inter
 
 ---
 
+## ADR-022: Validation & Pipeline — Three-Stage Response Processing with Score-Based Gating
+
+- **Status:** Accepted
+- **Category:** SEC
+- **Date:** 2026-07-14
+- **Supersedes:** None
+
+### Context
+
+Milestone 7 defined ADR-006 as a three-layer output validation strategy, with Layer 2 (post-generation validation) planned for Milestone 8. The system needs to: reject responses containing prohibited chess notation, sanitise responses before UI display, format responses into UI-ready structures, and handle errors gracefully with fallback content — all without blocking the UI.
+
+### Decision
+
+Implement ADR-006 Layer 2 as two coordinated submodules:
+
+1. **`lib/ai/validation/`** — Stateless pure functions for detection, sanitization, and schema validation
+2. **`lib/ai/pipeline/`** — Stateful orchestrator running stages sequentially with error handling
+
+**Validation module structure:**
+- `types.ts` — Validation output types, configs (DetectorConfig, SanitizerConfig, ValidatorConfig)
+- `schemas.ts` — Zod schemas for CommentResponse, ChatResponse, PostGameSummary
+- `detector.ts` — 6 pattern categories (algebraic, UCI, FEN, PGN, suggestions, partials)
+- `sanitizer.ts` — Strip notation, normalise whitespace, smart truncation
+- `validator.ts` — Orchestrator: parse → schema validate → detect → sanitize
+
+**Pipeline structure:**
+- `types.ts` — ProcessContext, ProcessResult, PipelineConfig, StageHandler
+- `error.ts` — Error classification (fatal/recoverable/warning), fallback generation
+- `stages.ts` — Three stage handlers: validation → sanitization → formatting
+- `pipeline.ts` — runPipeline() orchestrator + 3 convenience wrappers (processCommentary, processChat, processPostGameSummary)
+
+**Key design choices:**
+- Score-based gating: 100 base, -25 per error, -10 per warning/info, min 0. Threshold ≥ 70 passes.
+- Detector and sanitizer use the same regex patterns for consistency.
+- Fatal errors (invalid JSON, schema violation, injection, timeout) stop the pipeline and trigger fallback.
+- Recoverable errors (sanitization issues) log but continue.
+- Fallbacks are personality-aware: they select random templates from the personality's reactionTemplates.
+
+### Alternatives Considered
+
+| Option | Reason Against |
+|---|---|
+| Single monolithic validation function | Would mix detection, sanitization, and formatting concerns. Harder to test and maintain. |
+| Reject all content with any detection | Over-aggressive — valid strategic advice like "control the centre" should pass. Score-based gating allows nuance. |
+| Skip validation for latency | ADR-006 requires multi-layer defence. Omitting L2 creates a single point of failure. |
+| Use a third-party content filter | No chess-specific filters exist. Custom regex patterns are necessary. |
+
+### Consequences
+
+- Clean separation: validation functions are pure, pipeline orchestrates with error handling
+- Pipeline stages can be individually enabled/disabled for testing
+- Score-based gating provides more nuance than binary pass/fail
+- Personality-aware fallbacks make degraded experiences feel intentional, not broken
+- ~5-10ms validation latency per response (negligible)
+- New detection patterns can be added without changing pipeline logic
+
+### References
+
+- `lib/ai/validation/` — All validation module files
+- `lib/ai/pipeline/` — All pipeline module files
+- `docs/AI_GUIDELINES.md` — Output Validation & Pipeline sections
+- `docs/ARCHITECTURE.md` — AI Pipeline Architecture section
+- `reports/MILESTONE_08_REPORT.md` — Full milestone report
+
+---
+
 ## ADR-021: ConversationTranscript vs ConversationMemory — Pipeline Data vs Storage Shapes
 
 - **Status:** Accepted
