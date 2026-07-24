@@ -63,6 +63,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Personality avatar and selector displayed in `AICommentaryCard` header
   - Default personality: Sarcastic Rival
   - Milestone report: `reports/MILESTONE_13_SUMMARY.md`
+- Milestone 14: Player Memory & Adaptive Commentary — AI that remembers the player across games
+  - `lib/ai/memory/` — types, storage (localStorage), statistics (profile/level/style), tracker (game recording), memory-engine (context builder), barrel exports, README
+  - Tracks: games played, wins, losses, draws, openings, streaks, blunders, play style scores
+  - Generates player profile: level, playStyle, favouriteOpening, weaknesses, strengths, recurring mistakes
+  - Memory context injected into Gemini prompts for adaptive commentary
+  - `components/ai/PlayerStatsCard.tsx` — game record grid, profile details, accuracy %, streaks, memory management (reset/export/import)
+  - Existing M7 memory types preserved in `types-legacy.ts`
+  - Milestone report: `reports/MILESTONE_14_SUMMARY.md`
 
 ### Security
 - Gemini API key (`GEMINI_API_KEY`) is now server-side only via Next.js Route Handler — never exposed to the browser

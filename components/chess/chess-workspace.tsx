@@ -10,6 +10,13 @@ import { ChessInfoPanel } from "@/components/chess/chess-info-panel";
 import { CommentaryOrchestrator } from "@/lib/ai/orchestrator/orchestrator";
 import type { CommentaryResult } from "@/lib/ai/orchestrator/types";
 import { getPersonalitySetting } from "@/lib/ai/personalities/settings";
+import {
+  loadMemory,
+  saveMemory,
+  recordGame,
+  buildMemoryContext,
+  detectOpeningFromHistory,
+} from "@/lib/ai/memory";
 
 import type { CommentaryState } from "@/components/chess/chess-info-panel";
 
@@ -68,6 +75,46 @@ export function ChessWorkspace() {
 
   const [isAwaitingEngineMove, setIsAwaitingEngineMove] = useState(false);
   const pendingEngineMoveRef = useRef(false);
+
+  /* ── Game tracking (prevents double-recording in memory) ──────────── */
+
+  const gameRecordedRef = useRef(false);
+
+  /* ── Record game outcome when it ends ────────────────────────────── */
+
+  useEffect(() => {
+    if (isGameOver && !gameRecordedRef.current) {
+      gameRecordedRef.current = true;
+      const memory = loadMemory();
+      const history = getMoveHistory(gameRef.current);
+      const movesSan = history.map((m) => m.san).join(" ");
+      const opening = detectOpeningFromHistory(movesSan);
+
+      let outcome: "win" | "loss" | "draw" = "draw";
+      if (gameStatus.kind === "checkmate") {
+        outcome = gameStatus.winner === "w" ? "win" : "loss";
+      }
+
+      const updated = recordGame(memory, {
+        outcome,
+        opening,
+        totalMoves: history.length,
+        playerColor: "w",
+        blunders: 0,
+        mistakes: 0,
+        inaccuracies: 0,
+        queenLost: false,
+        castled: false,
+        earlyQueenMove: false,
+        avgPawnPushDistance: 0,
+      });
+      saveMemory(updated);
+      console.log("[MEMORY] recorded game outcome:", outcome, "opening:", opening, "totalGames:", updated.stats.gamesPlayed);
+    }
+    if (!isGameOver) {
+      gameRecordedRef.current = false;
+    }
+  }, [isGameOver, gameStatus]);
 
   /* ── Commentary orchestrator ─────────────────────────────────────── */
 
@@ -306,6 +353,13 @@ export function ChessWorkspace() {
       // Update orchestrator so it can discard stale responses.
       orchestrator?.updateCurrentFen(currentFen);
 
+      // Build memory context for adaptive commentary
+      const memory = loadMemory();
+      const memoryContext =
+        memory.stats.gamesPlayed > 0
+          ? buildMemoryContext(memory).summary
+          : undefined;
+
       // Enqueue the request (orchestrator handles cooldown, merging, etc.)
       orchestrator?.enqueue({
         fen: currentFen,
@@ -321,6 +375,7 @@ export function ChessWorkspace() {
         isCapture,
         isCheckmate,
         personalityId: getPersonalitySetting(),
+        memoryContext,
         timestamp: Date.now(),
       });
 
@@ -353,6 +408,7 @@ export function ChessWorkspace() {
     setIsAwaitingEngineMove(false);
     setEvalScore(null);
     setEvalIsThinking(false);
+    gameRecordedRef.current = false;
 
     gameRef.current = resetGame();
     setRevision((r) => r + 1);

@@ -46,6 +46,8 @@ export interface CommentaryRequest {
   isGameOver: boolean;
   /** Personality id for commentary tone (defaults to "sarcastic"). */
   personalityId?: string;
+  /** Player memory context for adaptive commentary (generated client-side). */
+  memoryContext?: string;
 }
 
 /* ─── API Route Response ──────────────────────────────── */

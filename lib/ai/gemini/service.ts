@@ -84,9 +84,13 @@ export async function generateCommentary(
     params.isGameOver,
     moveHistorySan,
   );
-  const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+  let memorySection = "";
+  if (params.memoryContext) {
+    memorySection = `\n\n## Player Profile\n\n${params.memoryContext}\n\nReference the player's history naturally and conversationally.`;
+  }
+  const fullPrompt = `${systemPrompt}\n\n${userPrompt}${memorySection}`;
 
-  console.log("[SERVICE] building prompt for move:", params.lastMove, "phase:", params.gamePhase, "personality:", personalityName);
+  console.log("[SERVICE] building prompt for move:", params.lastMove, "phase:", params.gamePhase, "personality:", personalityName, "hasMemory:", !!params.memoryContext);
 
   /* ── Call Gemini ──────────────────────────────────── */
 

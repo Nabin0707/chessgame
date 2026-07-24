@@ -92,7 +92,7 @@ export type {
   GameMemory,
   MemorySlice,
   PlayerMemory,
-} from "@/lib/ai/memory/types";
+} from "@/lib/ai/memory/types-legacy";
 
 /* ─── Context ────────────────────────────────────────── */
 

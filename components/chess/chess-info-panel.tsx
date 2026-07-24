@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { PersonalitySelector } from "@/components/ai/PersonalitySelector";
+import { PlayerStatsCard } from "@/components/ai/PlayerStatsCard";
 
 import type { GameStatus } from "@/types/chess";
 import type { EvalScore } from "@/types/engine";
@@ -75,6 +76,7 @@ export function ChessInfoPanel({
         status={gameStatus}
         isAwaitingEngineMove={isAwaitingEngineMove}
       />
+      <PlayerStatsCard />
     </aside>
   );
 }

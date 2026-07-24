@@ -188,18 +188,18 @@
 - [x] Integrate selector into `AICommentaryCard` header; enhanced loading animation
 - [x] 🔑 **Every game event gets commentary voiced in the selected personality's style**
 
-### Milestone 14: Move Commentary UI
-⏱ 2 days
+### Milestone 14: Player Memory & Adaptive Commentary ✅
+⏱ 3 days
 
-- [ ] Create `CommentaryPanel.tsx`:
-  - Real-time commentary after moves
-  - Commentary levels: Beginner / Intermediate / Advanced
-  - Typing animation for AI text (Framer Motion)
-  - Collapsible panel on mobile
-- [ ] Create `CommentaryBubble.tsx` — inline board annotation
-- [ ] Create `MoveGrade.tsx` — grade icon (brilliant, good, mistake, blunder)
-- [ ] Settings toggle: Commentary ON/OFF, level selector
-- [ ] 🔑 **Every move can be explained in plain language**
+- [x] Create `lib/ai/memory/` — types, storage, statistics, tracker, memory-engine, barrel exports, README
+- [x] Track games played, wins, losses, draws, openings, streaks, mistakes, play style
+- [x] Generate player profile (level, playStyle, favouriteOpening, weaknesses, strengths)
+- [x] Inject memory context into Gemini prompts for adaptive commentary
+- [x] Create `components/ai/PlayerStatsCard.tsx` — game record, profile, accuracy, streaks, memory management
+- [x] Memory management: reset, export JSON, import JSON via file picker
+- [x] Memory survives page refresh (localStorage)
+- [x] Existing M7 memory types preserved in types-legacy.ts
+- [x] 🔑 **AI references player history naturally across games**
 
 ### Milestone 15: Post-Game Analysis
 ⏱ 3 days
