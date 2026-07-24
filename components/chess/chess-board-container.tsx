@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 
@@ -182,7 +183,10 @@ export function ChessBoardContainer({
   /* ─── Render ──────────────────────────────────────────── */
 
   return (
-    <section
+    <motion.section
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
       className={cn("flex items-center justify-center", className)}
       aria-label="Chess board"
     >
@@ -201,6 +205,6 @@ export function ChessBoardContainer({
           }}
         />
       </div>
-    </section>
+    </motion.section>
   );
 }

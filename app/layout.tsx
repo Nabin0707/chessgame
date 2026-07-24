@@ -13,9 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 import { constructMetadata } from "@/seo/metadata";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { JsonLdSchema } from "@/seo/schema";
 
-export const metadata = constructMetadata();
-
+export const metadata: Metadata = constructMetadata();
 
 export default function RootLayout({
   children,
@@ -23,11 +24,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
-        {children}
+        <ThemeProvider>
+          {children}
+          <JsonLdSchema />
+        </ThemeProvider>
       </body>
     </html>
   );

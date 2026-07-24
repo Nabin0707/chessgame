@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { motion } from "framer-motion";
 
 import {
   Card,
@@ -11,6 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+
+import {
+  RotateCcw,
+  Plus,
+  History,
+  Swords,
+} from "lucide-react";
 
 import type { MoveRecord, GameStatus } from "@/types/chess";
 
@@ -65,24 +73,46 @@ function GameControlsCard({
   isGameOver,
 }: GameControlsCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Game Controls</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <Button variant="default" size="sm" onClick={onNewGame}>
-          {isGameOver ? "New Game" : "New Game"}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onUndo}
-          disabled={!canUndo}
-        >
-          Undo Move
-        </Button>
-      </CardContent>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Swords className="size-4 text-primary" aria-hidden="true" />
+            Game Controls
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button variant="default" size="sm" onClick={onNewGame} className="w-full gap-2">
+              <Plus className="size-4" aria-hidden="true" />
+              {isGameOver ? "New Game" : "New Game"}
+            </Button>
+          </motion.div>
+          <motion.div
+            whileHover={canUndo ? { scale: 1.02 } : undefined}
+            whileTap={canUndo ? { scale: 0.98 } : undefined}
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="w-full gap-2"
+            >
+              <RotateCcw className="size-4" aria-hidden="true" />
+              Undo Move
+            </Button>
+          </motion.div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -92,22 +122,31 @@ interface MoveHistoryCardProps {
 
 function MoveHistoryCard({ moveHistory }: MoveHistoryCardProps) {
   return (
-    <Card className="flex-1">
-      <CardHeader>
-        <CardTitle className="text-sm">Move History</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-48">
-          {moveHistory.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No moves yet. Drag a piece to start.
-            </p>
-          ) : (
-            <MovesTable moves={moveHistory} />
-          )}
-        </ScrollArea>
-      </CardContent>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: 0.1 }}
+    >
+      <Card className="flex-1">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <History className="size-4 text-primary" aria-hidden="true" />
+            Move History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-48">
+            {moveHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No moves yet. Drag a piece to start.
+              </p>
+            ) : (
+              <MovesTable moves={moveHistory} />
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -136,14 +175,20 @@ function MovesTable({ moves }: MovesTableProps) {
         </tr>
       </thead>
       <tbody>
-        {paired.map(([number, white, black]) => (
-          <tr key={number} className="border-b border-border/40 last:border-0">
+        {paired.map(([number, white, black], idx) => (
+          <motion.tr
+            key={number}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.25, delay: idx * 0.03 }}
+            className="border-b border-border/40 last:border-0"
+          >
             <td className="w-6 text-muted-foreground text-xs">{number}.</td>
             <td className="py-0.5 font-mono">{white.san}</td>
             <td className="py-0.5 font-mono text-muted-foreground">
               {black?.san ?? ""}
             </td>
-          </tr>
+          </motion.tr>
         ))}
       </tbody>
     </table>
@@ -152,13 +197,24 @@ function MovesTable({ moves }: MovesTableProps) {
 
 function CapturedPiecesCard() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Captured Pieces</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">Coming soon.</p>
-      </CardContent>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: 0.2 }}
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Swords className="size-4 text-primary" aria-hidden="true" />
+            Captured Pieces
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Coming soon.
+          </p>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

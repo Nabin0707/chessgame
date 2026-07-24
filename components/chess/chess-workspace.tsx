@@ -1,12 +1,11 @@
 "use client";
 
 import { useRef, useState, useMemo, useCallback, useEffect } from "react";
+import { motion } from "framer-motion";
 
-import { ChessHeader } from "@/components/chess/chess-header";
 import { ChessSidebar } from "@/components/chess/chess-sidebar";
 import { ChessBoardContainer } from "@/components/chess/chess-board-container";
 import { ChessInfoPanel } from "@/components/chess/chess-info-panel";
-import { ChessFooter } from "@/components/chess/chess-footer";
 
 import { CommentaryOrchestrator } from "@/lib/ai/orchestrator/orchestrator";
 import type { CommentaryResult } from "@/lib/ai/orchestrator/types";
@@ -429,42 +428,41 @@ export function ChessWorkspace() {
   /* ── Render ──────────────────────────────────────────────────────── */
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <ChessHeader />
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mx-auto flex w-full max-w-7xl flex-1 gap-4 p-4 lg:grid lg:grid-cols-[280px_1fr_280px] lg:gap-6 lg:p-6"
+    >
+      <ChessSidebar
+        className="hidden lg:flex"
+        moveHistory={moveHistory}
+        gameStatus={gameStatus}
+        onNewGame={handleNewGame}
+        onUndo={handleUndo}
+        isAwaitingEngineMove={isAwaitingEngineMove}
+      />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-4 p-4 lg:grid lg:grid-cols-[280px_1fr_280px] lg:gap-6 lg:p-6">
-        <ChessSidebar
-          className="hidden lg:flex"
-          moveHistory={moveHistory}
-          gameStatus={gameStatus}
-          onNewGame={handleNewGame}
-          onUndo={handleUndo}
-          isAwaitingEngineMove={isAwaitingEngineMove}
-        />
+      <ChessBoardContainer
+        fen={fen}
+        onMove={handleMove}
+        disabled={boardDisabled}
+        getLegalMovesForSquare={getLegalMovesForSquare}
+      />
 
-        <ChessBoardContainer
-          fen={fen}
-          onMove={handleMove}
-          disabled={boardDisabled}
-          getLegalMovesForSquare={getLegalMovesForSquare}
-        />
-
-        <ChessInfoPanel
-          className="hidden lg:flex"
-          gameStatus={gameStatus}
-          evalScore={evalScore}
-          evalIsThinking={evalIsThinking}
-          engineStatus={engineStatus}
-          engineErrorMessage={engineErrorMessage}
-          isAwaitingEngineMove={isAwaitingEngineMove}
-          commentaryState={commentaryState}
-          onRetryCommentary={() => {
-            /* Orchestrator handles retry via next enqueue */
-          }}
-        />
-      </div>
-
-      <ChessFooter />
-    </div>
+      <ChessInfoPanel
+        className="hidden lg:flex"
+        gameStatus={gameStatus}
+        evalScore={evalScore}
+        evalIsThinking={evalIsThinking}
+        engineStatus={engineStatus}
+        engineErrorMessage={engineErrorMessage}
+        isAwaitingEngineMove={isAwaitingEngineMove}
+        commentaryState={commentaryState}
+        onRetryCommentary={() => {
+          /* Orchestrator handles retry via next enqueue */
+        }}
+      />
+    </motion.div>
   );
 }

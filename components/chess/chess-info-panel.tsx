@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -10,6 +10,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatEval } from "@/types/engine";
+
+import {
+  MessageSquareText,
+  Lightbulb,
+  RefreshCw,
+  BarChart3,
+  Search,
+  Flag,
+  Swords,
+} from "lucide-react";
 
 import type { GameStatus } from "@/types/chess";
 import type { EvalScore } from "@/types/engine";
@@ -74,68 +84,123 @@ interface AICommentaryCardProps {
 
 function AICommentaryCard({ state, onRetry }: AICommentaryCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">AI Commentary</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {state.kind === "idle" && (
-          <p className="text-sm text-muted-foreground">
-            Make a move to see AI commentary.
-          </p>
-        )}
-
-        {state.kind === "loading" && (
-          <div className="flex items-center gap-2">
-            <span className="inline-block size-3 animate-pulse rounded-full bg-primary" />
-            <p className="text-sm text-muted-foreground">
-              Analysing your move…
-            </p>
-          </div>
-        )}
-
-        {state.kind === "success" && (
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-1">
-              {state.reactions.map((emoji, i) => (
-                <span key={i} className="text-lg" role="img" aria-label="reaction">
-                  {emoji}
-                </span>
-              ))}
-            </div>
-            <p className="text-sm">{state.text}</p>
-            {state.tip && (
-              <p className="text-xs text-muted-foreground italic">
-                💡 {state.tip}
-              </p>
-            )}
-          </div>
-        )}
-
-        {state.kind === "error" && (
-          <div className="space-y-2">
-            <p className="text-sm text-destructive">
-              Could not generate commentary.
-            </p>
-            {onRetry && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRetry}
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <MessageSquareText className="size-4 text-primary" aria-hidden="true" />
+            AI Commentary
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AnimatePresence mode="wait">
+            {state.kind === "idle" && (
+              <motion.p
+                key="idle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-muted-foreground"
               >
-                Try again
-              </Button>
+                Make a move to see AI commentary.
+              </motion.p>
             )}
-          </div>
-        )}
 
-        {state.kind === "unconfigured" && (
-          <p className="text-sm text-muted-foreground">
-            AI commentary requires a Gemini API key to be set on the server.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+            {state.kind === "loading" && (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2"
+              >
+                <span className="inline-block size-3 animate-pulse rounded-full bg-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Analysing your move…
+                </p>
+              </motion.div>
+            )}
+
+            {state.kind === "success" && (
+              <motion.div
+                key="success"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-2"
+              >
+                {state.reactions.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {state.reactions.map((emoji, i) => (
+                      <motion.span
+                        key={i}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: i * 0.1, type: "spring" }}
+                        className="text-lg"
+                        role="img"
+                        aria-label="reaction"
+                      >
+                        {emoji}
+                      </motion.span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-sm leading-relaxed">{state.text}</p>
+                {state.tip && (
+                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground italic">
+                    <Lightbulb className="mt-px size-3.5 shrink-0 text-amber-500" aria-hidden="true" />
+                    {state.tip}
+                  </p>
+                )}
+              </motion.div>
+            )}
+
+            {state.kind === "error" && (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-2"
+              >
+                <p className="text-sm text-destructive">
+                  Could not generate commentary.
+                </p>
+                {onRetry && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRetry}
+                    className="gap-1.5"
+                  >
+                    <RefreshCw className="size-3.5" aria-hidden="true" />
+                    Try again
+                  </Button>
+                )}
+              </motion.div>
+            )}
+
+            {state.kind === "unconfigured" && (
+              <motion.p
+                key="unconfigured"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-muted-foreground"
+              >
+                AI commentary requires a Gemini API key to be set on the server.
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -153,62 +218,113 @@ function EvaluationCard({
   errorMessage,
 }: EvaluationCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Evaluation</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {status === "loading" && (
-          <p className="text-sm text-muted-foreground">
-            Loading Stockfish engine…
-          </p>
-        )}
-
-        {status === "error" && (
-          <div className="space-y-2">
-            <p className="text-sm text-destructive">
-              {errorMessage ?? "Engine failed to load"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {errorMessage?.includes("Worker did not respond") || errorMessage?.includes("failed to load")
-                ? "If using Brave, try turning Shields off for this site (click the lion icon in the URL bar)."
-                : "Try refreshing the page."}
-            </p>
-          </div>
-        )}
-
-        {status === "ready" && !score && !isThinking && (
-          <p className="text-sm text-muted-foreground">
-            Waiting for position…
-          </p>
-        )}
-
-        {status === "ready" && isThinking && !score && (
-          <p className="text-sm text-muted-foreground">
-            Loading…
-          </p>
-        )}
-
-        {status === "ready" && score && (
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold tabular-nums">
-              {formatEval(score)}
-            </span>
-            {isThinking && (
-              <span className="text-xs text-muted-foreground animate-pulse">
-                searching
-              </span>
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: 0.1 }}
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <BarChart3 className="size-4 text-primary" aria-hidden="true" />
+            Evaluation
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AnimatePresence mode="wait">
+            {status === "loading" && (
+              <motion.p
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-muted-foreground"
+              >
+                Loading Stockfish engine…
+              </motion.p>
             )}
-          </div>
-        )}
 
-        {status === "idle" && (
-          <p className="text-sm text-muted-foreground">
-            Engine not available
-          </p>
-        )}
-      </CardContent>
-    </Card>
+            {status === "error" && (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-2"
+              >
+                <p className="text-sm text-destructive">
+                  {errorMessage ?? "Engine failed to load"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {errorMessage?.includes("Worker did not respond") || errorMessage?.includes("failed to load")
+                    ? "If using Brave, try turning Shields off for this site (click the lion icon in the URL bar)."
+                    : "Try refreshing the page."}
+                </p>
+              </motion.div>
+            )}
+
+            {status === "ready" && !score && !isThinking && (
+              <motion.p
+                key="waiting"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-muted-foreground"
+              >
+                Waiting for position…
+              </motion.p>
+            )}
+
+            {status === "ready" && isThinking && !score && (
+              <motion.p
+                key="thinking-no-score"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <Search className="size-3.5 animate-pulse" aria-hidden="true" />
+                Analysing…
+              </motion.p>
+            )}
+
+            {status === "ready" && score && (
+              <motion.div
+                key="score"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold tabular-nums tracking-tight">
+                    {formatEval(score)}
+                  </span>
+                  {isThinking && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Search className="size-3 animate-pulse" aria-hidden="true" />
+                      searching
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {status === "idle" && (
+              <motion.p
+                key="idle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-muted-foreground"
+              >
+                Engine not available
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -234,19 +350,31 @@ function GameStatusCard({
   const details = formatStatusDetail(status, isAwaitingEngineMove);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Game Status</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium">{label}</p>
-          {details && (
-            <p className="text-sm text-muted-foreground">{details}</p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: 0.2 }}
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Flag className="size-4 text-primary" aria-hidden="true" />
+            Game Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-1">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              {status.kind === "check" && <Swords className="size-4 text-destructive" aria-hidden="true" />}
+              {label}
+            </p>
+            {details && (
+              <p className="text-sm text-muted-foreground">{details}</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 

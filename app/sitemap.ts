@@ -1,14 +1,21 @@
-import { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
+import { SITE_CONFIG } from "@/seo/config";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const routes = [
-        "",
-    ].map((route) => ({
-        url: `https://ai-chess.vercel.app${route}`,
-        lastModified: new Date().toISOString(),
-        changeFrequency: "monthly" as const,
-        priority: route === "" ? 1 : 0.8,
-    }));
+  const baseUrl = SITE_CONFIG.url;
 
-    return routes;
+  return [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 1,
+    },
+    {
+      url: `${baseUrl}/play`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+  ];
 }

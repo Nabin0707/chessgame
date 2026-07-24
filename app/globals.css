@@ -118,5 +118,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  /* Smooth theme transition on interactive and structural elements */
+  header, footer, nav, section, aside, main,
+  button, a, input, textarea, select,
+  [role="dialog"], [role="menubar"], card,
+  .card, .border-border {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
   }
 }
