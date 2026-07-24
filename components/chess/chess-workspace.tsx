@@ -9,6 +9,7 @@ import { ChessInfoPanel } from "@/components/chess/chess-info-panel";
 
 import { CommentaryOrchestrator } from "@/lib/ai/orchestrator/orchestrator";
 import type { CommentaryResult } from "@/lib/ai/orchestrator/types";
+import { getPersonalitySetting } from "@/lib/ai/personalities/settings";
 
 import type { CommentaryState } from "@/components/chess/chess-info-panel";
 
@@ -319,6 +320,7 @@ export function ChessWorkspace() {
         isGameOver,
         isCapture,
         isCheckmate,
+        personalityId: getPersonalitySetting(),
         timestamp: Date.now(),
       });
 

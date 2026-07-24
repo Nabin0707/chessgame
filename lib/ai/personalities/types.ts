@@ -2,120 +2,96 @@
  * ──────────────────────────────────────────────────────────
  * Personality Types  —  lib/ai/personalities/types.ts
  *
- * Interfaces and type aliases for the AI commentary
- * personality system.  Each personality defines a distinct
- * character with its own tone, humour, aggression, and
- * game-event reactions.
+ * Core type definitions for the AI Personality Engine.
+ * Each personality defines a unique character that drives
+ * the tone, style, and content of chess commentary.
  * ──────────────────────────────────────────────────────────
  */
 
-/* ─── Scalar Trait Types ─────────────────────────────── */
-
-/** The overall tone of the personality's commentary. */
-export type Tone =
-  | "enthusiastic"
-  | "analytical"
-  | "witty"
-  | "dramatic"
-  | "calm"
+/** Unique identifiers for all built-in personalities. */
+export type PersonalityId =
+  | "coach"
+  | "grandmaster"
   | "sarcastic"
-  | "encouraging"
-  | "stoic";
+  | "villain"
+  | "friend";
 
-/** How much humour the personality injects into commentary. */
-export type HumorLevel = "none" | "light" | "moderate" | "high";
+/** Tone categories a personality can use. */
+export type PersonalityTone =
+  | "educational"
+  | "professional"
+  | "playful"
+  | "dramatic"
+  | "casual";
 
-/** How aggressively the personality critiques moves. */
-export type AggressionLevel = "gentle" | "moderate" | "savage" | "merciless";
+/** How frequently emojis appear in commentary. */
+export type EmojiFrequency = "frequent" | "moderate" | "rare" | "none";
 
-/* ─── Emoji Style ────────────────────────────────────── */
+/** Target length of commentary responses. */
+export type ResponseLength = "short" | "medium" | "long";
 
-/**
- * Per-event emoji sets.  Each event type maps to an array of
- * candidate emojis; the commentary formatter picks one at
- * random (or cycles through them) for variety.
- */
-export interface EmojiStyle {
-  opening: string[];
-  check: string[];
-  capture: string[];
-  blunder: string[];
-  mistake: string[];
-  brilliant: string[];
-  checkmate: string[];
-  victory: string[];
-  defeat: string[];
-  draw: string[];
-  trade: string[];
-  timeTrouble: string[];
+/** Fixed traits that define a personality's character. */
+export interface PersonalityTraits {
+  /** Primary speaking tone. */
+  tone: PersonalityTone;
+  /** Humour level: 0 = none, 10 = maximum. */
+  humorLevel: number;
+  /** Competitiveness: 0 = friendly, 10 = intense. */
+  competitiveness: number;
+  /** How often emojis are used. */
+  emojiFrequency: EmojiFrequency;
+  /** Target response length in sentences. */
+  responseLength: ResponseLength;
 }
 
-/* ─── Reaction Templates ─────────────────────────────── */
-
 /**
- * Template strings for in-game events.  These are
- * parameterised strings that the prompt builder uses
- * to construct the system prompt for each commentary
- * request.  Variables are denoted with `{placeholder}`
- * syntax.
- *
- * Example:
- *   "${playerName} just played {move}. That's a
- *   {reaction} move!"
+ * Reaction templates keyed by game event type.
+ * Each template is a string with optional {variable} placeholders.
  */
-export interface ReactionTemplates {
-  opening: string;
-  midgame: string;
-  endgame: string;
+export interface ReactionMap {
+  general: string;
   check: string;
   capture: string;
-  blunder: string;
-  mistake: string;
-  inaccuracy: string;
-  goodMove: string;
-  excellentMove: string;
-  brilliantMove: string;
   checkmate: string;
   victory: string;
   defeat: string;
   draw: string;
-  timeTrouble: string;
-  comeback: string;
-  trade: string;
-  novelty: string;
+  blunder: string;
+  mistake: string;
+  brilliant: string;
+  goodMove: string;
+  opening: string;
+  midgame: string;
+  endgame: string;
 }
-
-/* ─── Personality ────────────────────────────────────── */
 
 /** A complete personality definition. */
-export interface Personality {
-  /** Unique identifier (kebab-case, e.g. "the-analyst"). */
-  id: string;
-  /** Human-readable name (e.g. "The Analyst"). */
+export interface PersonalityDefinition {
+  /** Unique identifier (kebab-case). */
+  id: PersonalityId;
+  /** Human-readable display name. */
   name: string;
-  /** Emoji or URL for the avatar. */
-  avatar: string;
-  /** One-line description shown in the personality picker. */
+  /** Short one-line description. */
   description: string;
-  /** Core commentary tone. */
-  tone: Tone;
-  /** How much humour the personality uses. */
-  humor: HumorLevel;
-  /** How harshly it critiques mistakes. */
-  aggression: AggressionLevel;
-  /** Emoji reactions per event type. */
-  emojiStyle: EmojiStyle;
-  /** Reaction template strings for prompt construction. */
-  reactions: ReactionTemplates;
+  /** Emoji avatar. */
+  avatar: string;
+  /** Core character traits. */
+  traits: PersonalityTraits;
   /**
-   * Style guide injected into the system prompt.
-   * Describes how the personality speaks — e.g.
-   * "Speak in short, punchy sentences. Use metaphors."
+   * A paragraph injected into the system prompt that
+   * establishes the personality's voice and mannerisms.
    */
   styleGuide: string;
+  /**
+   * The first line of the system prompt: "You are ...".
+   * Establishes the character's identity.
+   */
+  identityPrompt: string;
+  /** Event-specific reaction templates. */
+  reactions: ReactionMap;
 }
 
-/* ─── Personality Collection ─────────────────────────── */
-
-/** A registry of all available personalities. */
-export type PersonalityRegistry = Record<string, Personality>;
+/** Shape returned by the personality settings store. */
+export interface PersonalitySettings {
+  activeId: PersonalityId;
+}

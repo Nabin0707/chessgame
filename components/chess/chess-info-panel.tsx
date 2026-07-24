@@ -21,6 +21,8 @@ import {
   Swords,
 } from "lucide-react";
 
+import { PersonalitySelector } from "@/components/ai/PersonalitySelector";
+
 import type { GameStatus } from "@/types/chess";
 import type { EvalScore } from "@/types/engine";
 
@@ -94,6 +96,9 @@ function AICommentaryCard({ state, onRetry }: AICommentaryCardProps) {
           <CardTitle className="flex items-center gap-2 text-sm">
             <MessageSquareText className="size-4 text-primary" aria-hidden="true" />
             AI Commentary
+            <span className="ml-auto">
+              <PersonalitySelector />
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -118,10 +123,29 @@ function AICommentaryCard({ state, onRetry }: AICommentaryCardProps) {
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-2"
               >
-                <span className="inline-block size-3 animate-pulse rounded-full bg-primary" />
-                <p className="text-sm text-muted-foreground">
+                <motion.span
+                  className="inline-block size-3 rounded-full bg-primary"
+                  animate={{
+                    scale: [1, 1.3, 1],
+                    opacity: [1, 0.6, 1],
+                  }}
+                  transition={{
+                    duration: 1.2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+                <motion.p
+                  className="text-sm text-muted-foreground"
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
                   Analysing your move…
-                </p>
+                </motion.p>
               </motion.div>
             )}
 

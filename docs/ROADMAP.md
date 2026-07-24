@@ -162,35 +162,31 @@
 
 ## Phase 3: AI Commentary (Milestones 12–16)
 
-### Milestone 12: Gemini Integration
-⏱ 2 days
+### Milestone 12: Chess Intelligence Engine ✅
+⏱ 3 days
 
-- [ ] Install `@google/generative-ai`
-- [ ] Create `lib/ai/gemini.ts`:
-  - `initGemini(apiKey)` → Gemini client
-  - `explainMove(move, fen, context)` → Commentary
-  - `analyzeGame(pgn)` → GameAnalysis
-  - `explainPosition(fen, history)` → PositionAnalysis
-  - `chat(message, gameContext)` → ChatResponse
-- [ ] Create `lib/ai/prompts.ts` — system prompts:
-  - **Critical**: "You never output chess moves. You explain and analyze only."
-  - Constrained output format (structured JSON)
-  - Prompt templates for each use case
-- [ ] Create `lib/ai/types.ts` — response types
-- [ ] Write unit tests (mock Gemini, verify no move output)
-- [ ] 🔑 **AI commentary is safe, structured, and testable**
+- [x] Create `lib/chess/analysis/types.ts` — AnalysisResult, MoveQualityCategory (8 tiers), GamePhase, OpeningEntry, ImportanceWeights
+- [x] Create `lib/chess/analysis/constants.ts` — piece values, quality thresholds, 60+ ECO opening patterns
+- [x] Create `lib/chess/analysis/helpers.ts` — material evaluation, phase detection, move classification, positional heuristics
+- [x] Create `lib/chess/analysis/analysis-engine.ts` — `analyzeMove()` and `analyzeMoveHistory()` pipeline
+- [x] Pure function design — no side effects, no React dependencies, fully testable
+- [x] 🔑 **Analysis layer enriches game data before reaching the commentary pipeline**
 
-### Milestone 13: Commentary Pipeline
-⏱ 2 days
+### Milestone 13: AI Personality Engine ✅
+⏱ 3 days
 
-- [ ] Create commentary orchestration in `lib/ai/`:
-  - Determine when to trigger commentary (user setting, move quality threshold)
-  - Build context for Gemini (position, previous moves, player skill level)
-  - Parse and validate Gemini response (reject if it contains move suggestions)
-  - Rate limiting (throttle API calls)
-- [ ] Handle API errors gracefully (retry with backoff, fallback messages)
-- [ ] Handle API key missing (graceful degradation — no commentary)
-- [ ] 🔑 **Commentary is reliable, responsive, and safe**
+- [x] Create personality type system (`PersonalityDefinition`, `PersonalityTraits`, `ReactionMap`)
+- [x] Build 5 distinct personalities with unique tone, humour, competitiveness:
+  - Coach (educational, encouraging), Grandmaster (professional, precise)
+  - Sarcastic Rival (playful, witty — default), Chess Villain (dramatic, theatrical)
+  - Friendly Opponent (casual, warm)
+- [x] Create `lib/ai/personalities/engine.ts` — modular prompt builder (identity + style + constraints + event reaction)
+- [x] Create `lib/ai/personalities/registry.ts` — central registry for lookup and enumeration
+- [x] Create `lib/ai/personalities/settings.ts` — localStorage persistence for personality selection
+- [x] Create `components/ai/PersonalitySelector.tsx` — compact dropdown with animated avatar
+- [x] Wire personality into Gemini service and API route (`personalityId` flows from UI → orchestrator → API → service → prompt)
+- [x] Integrate selector into `AICommentaryCard` header; enhanced loading animation
+- [x] 🔑 **Every game event gets commentary voiced in the selected personality's style**
 
 ### Milestone 14: Move Commentary UI
 ⏱ 2 days

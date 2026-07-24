@@ -14,8 +14,8 @@
  *
  *   POST /api/ai/commentary
  *   Content-Type: application/json
- *   Body: { fen, lastMove, moveNumber, playerColor, moveHistory,
- *           evalScore?, evalDepth, gamePhase, inCheck, isGameOver }
+ *   Body: { fen, lastMove, moveNumber, playerColor, moveHistory, evalScore?,
+ *           evalDepth, gamePhase, inCheck, isGameOver, personalityId? }
  *
  * # Response (success)
  *
@@ -61,7 +61,8 @@ export async function POST(request: Request): Promise<NextResponse<CommentaryApi
   let body: unknown;
   try {
     body = await request.json();
-    console.log("[API] commentary request received, fields:", Object.keys(body as object));
+    const personalityId = (body as Record<string, unknown>).personalityId;
+    console.log("[API] commentary request received, fields:", Object.keys(body as object), "personalityId:", personalityId ?? "(default)");
   } catch {
     console.log("[API] invalid JSON body");
     return NextResponse.json(

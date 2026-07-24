@@ -44,6 +44,8 @@ export interface CommentaryRequest {
   inCheck: boolean;
   /** Whether the game ended after this move. */
   isGameOver: boolean;
+  /** Personality id for commentary tone (defaults to "sarcastic"). */
+  personalityId?: string;
 }
 
 /* ─── API Route Response ──────────────────────────────── */

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/providers/theme-provider";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

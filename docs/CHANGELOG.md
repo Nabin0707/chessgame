@@ -47,6 +47,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `ResponseParser`, `GradeExtractor`
   - Comprehensive documentation: `docs/AI_GUIDELINES.md` with Mermaid pipeline diagrams
   - Milestone report: `reports/MILESTONE_07_REPORT.md`
+- Milestone 12: Chess Intelligence Engine — pure analysis layer extracting structured game intelligence before it reaches AI commentary
+  - 6 new files in `lib/chess/analysis/`: types, constants (60+ ECO openings), helpers (14 functions), analysis-engine (9-step pipeline), barrel exports, README
+  - 8-tier move quality classification (brilliant → blunder) using centipawn loss thresholds
+  - Phase detection, opening identification, positional heuristics (center/king/development)
+  - Importance scoring (0–100) weighted by tactics, material swings, and threats
+  - Pure function design — no side effects, no React dependencies
+  - Milestone report: `reports/MILESTONE_12_SUMMARY.md`
+- Milestone 13: AI Personality Engine — modular personality system transforming the AI commentator into 5 unique characters
+  - 5 personalities: Coach (🏆), Grandmaster (👑), Sarcastic Rival (🎭), Chess Villain (😈), Friendly Opponent (🤝)
+  - Personality type system with `PersonalityDefinition`, `PersonalityTraits`, `ReactionMap`
+  - `lib/ai/personalities/` — types, base, registry, engine, settings (localStorage), 5 personality files, barrel exports
+  - `components/ai/PersonalitySelector.tsx` — compact dropdown with animated avatar transitions
+  - Integrated into Gemini pipeline: `personalityId` flows from UI → orchestrator → API route → Gemini service → prompt builder
+  - Personality avatar and selector displayed in `AICommentaryCard` header
+  - Default personality: Sarcastic Rival
+  - Milestone report: `reports/MILESTONE_13_SUMMARY.md`
 
 ### Security
 - Gemini API key (`GEMINI_API_KEY`) is now server-side only via Next.js Route Handler — never exposed to the browser

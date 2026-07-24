@@ -77,6 +77,8 @@ export interface CommentaryQueueItem {
   isCapture: boolean;
   /** Whether the last move delivered checkmate. */
   isCheckmate: boolean;
+  /** Selected personality for commentary tone (defaults to "sarcastic"). */
+  personalityId?: string;
   /** Timestamp when the item was created. */
   timestamp: number;
 }

@@ -14,6 +14,7 @@ const geistMono = Geist_Mono({
 
 import { constructMetadata } from "@/seo/metadata";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { ThemeScript } from "@/components/providers/theme-script";
 import { JsonLdSchema } from "@/seo/schema";
 
 export const metadata: Metadata = constructMetadata();
@@ -25,6 +26,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
