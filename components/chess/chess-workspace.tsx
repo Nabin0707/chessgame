@@ -8,6 +8,9 @@ import { ChessBoardContainer } from "@/components/chess/chess-board-container";
 import { ChessInfoPanel } from "@/components/chess/chess-info-panel";
 import { ChessFooter } from "@/components/chess/chess-footer";
 
+import { CommentaryOrchestrator } from "@/lib/ai/orchestrator/orchestrator";
+import type { CommentaryResult } from "@/lib/ai/orchestrator/types";
+
 import type { CommentaryState } from "@/components/chess/chess-info-panel";
 
 import {
@@ -65,88 +68,13 @@ export function ChessWorkspace() {
 
   const [isAwaitingEngineMove, setIsAwaitingEngineMove] = useState(false);
   const pendingEngineMoveRef = useRef(false);
-  const engineMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* ── Commentary state ────────────────────────────────────────────── */
+  /* ── Commentary orchestrator ─────────────────────────────────────── */
 
+  const orchestratorRef = useRef<CommentaryOrchestrator | null>(null);
   const [commentaryState, setCommentaryState] = useState<CommentaryState>({
     kind: "idle",
   });
-
-  /* ── Generate commentary via API ─────────────────────────────────── */
-
-  const commentaryFenRef = useRef<string | null>(null);
-
-  const generateCommentary = useCallback(async () => {
-    const currentFen = getFen(gameRef.current);
-    const currentHistory = getMoveHistory(gameRef.current);
-    const currentStatus = getGameStatus(gameRef.current);
-    const lastRecord = currentHistory[currentHistory.length - 1];
-
-    if (!lastRecord) {
-      console.log("[COMMENTARY] no last move, skipping");
-      return;
-    }
-
-    const payload = {
-      fen: currentFen,
-      lastMove: lastRecord.san,
-      moveNumber: Math.ceil(currentHistory.length / 2),
-      playerColor: currentStatus.turn === "w" ? "b" : "w",
-      moveHistory: currentHistory,
-      evalScore: null,
-      evalDepth: 18,
-      gamePhase: deriveGamePhase(currentHistory.length),
-      inCheck:
-        currentStatus.kind === "check" ||
-        ("inCheck" in currentStatus && currentStatus.inCheck),
-      isGameOver:
-        currentStatus.kind === "checkmate" ||
-        currentStatus.kind === "stalemate" ||
-        currentStatus.kind === "draw",
-    };
-
-    console.log("[COMMENTARY] sending request:", JSON.stringify(payload, null, 2));
-
-    setCommentaryState({ kind: "loading" });
-    commentaryFenRef.current = currentFen;
-
-    try {
-      const res = await fetch("/api/ai/commentary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      console.log("[COMMENTARY] response status:", res.status, res.statusText);
-
-      const data = await res.json();
-      console.log("[COMMENTARY] response body:", JSON.stringify(data, null, 2));
-
-      if (data.success) {
-        console.log("[COMMENTARY] success:", data.commentary?.slice(0, 80));
-        setCommentaryState({
-          kind: "success",
-          text: data.commentary,
-          reactions: data.reactions ?? [],
-          tip: data.tip,
-        });
-      } else if (
-        data.fallback ===
-        "AI commentary is not configured. Keep playing!"
-      ) {
-        console.log("[COMMENTARY] unconfigured — no API key set on server");
-        setCommentaryState({ kind: "unconfigured" });
-      } else {
-        console.log("[COMMENTARY] fallback:", data.fallback, "error:", data.error);
-        if (data.debug) console.log("[COMMENTARY] raw debug text:", data.debug);
-        setCommentaryState({ kind: "error" });
-      }
-    } catch (err) {
-      console.error("[COMMENTARY] fetch failed:", err);
-      setCommentaryState({ kind: "error" });
-    }
-  }, []);
 
   /* ── Derive game phase from move count ───────────────────────────── */
 
@@ -155,6 +83,86 @@ export function ChessWorkspace() {
     if (moveCount <= 40) return "midgame";
     return "endgame";
   }
+
+  /* ── Initialize orchestrator once ────────────────────────────────── */
+
+  useEffect(() => {
+    const fetchFn = async (
+      item: import("@/lib/ai/orchestrator/types").CommentaryQueueItem,
+    ): Promise<CommentaryResult> => {
+      console.log("[ORCHESTRATOR] fetching commentary for move:", item.lastMove);
+
+      try {
+        const res = await fetch("/api/ai/commentary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(item),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          return {
+            kind: "success",
+            text: data.commentary,
+            reactions: data.reactions ?? [],
+            tip: data.tip,
+          };
+        }
+
+        if (
+          data.fallback ===
+          "AI commentary is not configured. Keep playing!"
+        ) {
+          return { kind: "unconfigured" };
+        }
+
+        return { kind: "error" };
+      } catch {
+        return { kind: "error" };
+      }
+    };
+
+    const orchestrator = new CommentaryOrchestrator(
+      { cooldownMs: 2_000 },
+      fetchFn,
+    );
+
+    const unsub = orchestrator.onEvent((event) => {
+      switch (event.type) {
+        case "loading":
+          setCommentaryState({ kind: "loading" });
+          break;
+        case "result": {
+          const r = event.result;
+          if (r.kind === "success") {
+            setCommentaryState({
+              kind: "success",
+              text: r.text,
+              reactions: r.reactions,
+              tip: r.tip,
+            });
+          } else if (r.kind === "unconfigured") {
+            setCommentaryState({ kind: "unconfigured" });
+          } else {
+            setCommentaryState({ kind: "error" });
+          }
+          break;
+        }
+        case "skipped":
+          // Silently discard — position moved on.
+          break;
+      }
+    });
+
+    orchestratorRef.current = orchestrator;
+
+    return () => {
+      unsub();
+      orchestrator.destroy();
+      orchestratorRef.current = null;
+    };
+  }, []);
 
   const boardDisabled = isAwaitingEngineMove || isGameOver;
 
@@ -225,10 +233,6 @@ export function ChessWorkspace() {
         if (result.success) {
           setRevision((r) => r + 1);
 
-          // Only clear the waiting flags when the move is actually applied.
-          // If the move fails (e.g. a stale bestmove from the cancelled
-          // display evaluation arrives for the wrong turn), keep waiting
-          // for the real engine response.
           pendingEngineMoveRef.current = false;
           setIsAwaitingEngineMove(false);
           console.log("[OPPONENT] move applied, flags cleared");
@@ -249,8 +253,6 @@ export function ChessWorkspace() {
   useEffect(() => {
     if (engineStatus !== "ready") return;
 
-    // If the user already moved before the engine was ready (e.g. during
-    // initialization), trigger the opponent search now that we're ready.
     const status = getGameStatus(gameRef.current);
     if (status.turn === "b" && (status.kind === "playing" || status.kind === "check")) {
       console.log("[ENGINE_READY] engine became ready — triggering opponent move (user moved early)");
@@ -285,13 +287,57 @@ export function ChessWorkspace() {
         pendingEngineMoveRef.current = false;
       }
 
-      // Generate AI commentary after the player's move
-      generateCommentary();
+      /* ── Enqueue commentary via orchestrator ─────────── */
+
+      const orchestrator = orchestratorRef.current;
+      const currentFen = getFen(gameRef.current);
+      const currentHistory = getMoveHistory(gameRef.current);
+      const lastRecord = currentHistory[currentHistory.length - 1];
+      const inCheck =
+        status.kind === "check" ||
+        ("inCheck" in status && status.inCheck);
+      const isGameOver =
+        status.kind === "checkmate" ||
+        status.kind === "stalemate" ||
+        status.kind === "draw";
+      const isCapture = !!lastRecord?.captured;
+      const isCheckmate = status.kind === "checkmate";
+
+      // Update orchestrator so it can discard stale responses.
+      orchestrator?.updateCurrentFen(currentFen);
+
+      // Enqueue the request (orchestrator handles cooldown, merging, etc.)
+      orchestrator?.enqueue({
+        fen: currentFen,
+        lastMove: lastRecord?.san ?? "",
+        moveNumber: Math.ceil(currentHistory.length / 2),
+        playerColor: status.turn === "w" ? "b" : "w",
+        moveHistory: currentHistory,
+        evalScore: null,
+        evalDepth: 18,
+        gamePhase: deriveGamePhase(currentHistory.length),
+        inCheck,
+        isGameOver,
+        isCapture,
+        isCheckmate,
+        timestamp: Date.now(),
+      });
 
       return true;
     },
-    [triggerEngineMove, generateCommentary],
+    [triggerEngineMove, engineStatus],
   );
+
+  /* ── Legal move helper for board highlighting ─────────────────────── */
+
+  const getLegalMovesForSquare = useCallback((square: string): string[] => {
+    try {
+      const moves = gameRef.current.moves({ square: square as any, verbose: true });
+      return moves.map((m) => m.to);
+    } catch {
+      return [];
+    }
+  }, []);
 
   /* ── Handle new game ─────────────────────────────────────────────── */
 
@@ -309,6 +355,11 @@ export function ChessWorkspace() {
 
     gameRef.current = resetGame();
     setRevision((r) => r + 1);
+
+    // Reset orchestrator and clear commentary.
+    orchestratorRef.current?.reset();
+    orchestratorRef.current?.updateCurrentFen(getFen(gameRef.current));
+    setCommentaryState({ kind: "idle" });
   }, []);
 
   /* ── Handle undo ─────────────────────────────────────────────────── */
@@ -328,6 +379,9 @@ export function ChessWorkspace() {
         setIsAwaitingEngineMove(true);
         triggerEngineMove();
       }
+
+      // Clear commentary after undo since position changed.
+      setCommentaryState({ kind: "idle" });
     }
   }, [isAwaitingEngineMove, triggerEngineMove]);
 
@@ -392,6 +446,7 @@ export function ChessWorkspace() {
           fen={fen}
           onMove={handleMove}
           disabled={boardDisabled}
+          getLegalMovesForSquare={getLegalMovesForSquare}
         />
 
         <ChessInfoPanel
@@ -403,7 +458,9 @@ export function ChessWorkspace() {
           engineErrorMessage={engineErrorMessage}
           isAwaitingEngineMove={isAwaitingEngineMove}
           commentaryState={commentaryState}
-          onRetryCommentary={generateCommentary}
+          onRetryCommentary={() => {
+            /* Orchestrator handles retry via next enqueue */
+          }}
         />
       </div>
 

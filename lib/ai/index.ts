@@ -210,6 +210,19 @@ export {
   isWarning,
 } from "@/lib/ai/pipeline/error";
 
+/* ─── Orchestrator ───────────────────────────────────── */
+
+export type {
+  OrchestratorConfig,
+  CommentaryQueueItem,
+  CommentaryResult,
+  OrchestratorEvent,
+  FetchCommentaryFn,
+} from "@/lib/ai/orchestrator/types";
+
+export { DEFAULT_ORCHESTRATOR_CONFIG } from "@/lib/ai/orchestrator/types";
+export { CommentaryOrchestrator } from "@/lib/ai/orchestrator/orchestrator";
+
 export {
   runPipeline,
   processCommentary,
