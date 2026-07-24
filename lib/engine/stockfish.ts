@@ -1,4 +1,4 @@
-import type { EvalScore, EngineCallbacks, SearchOptions } from "@/types/engine";
+import type { EvalScore, EngineCallbacks, SearchOptions, AnalysisData } from "@/types/engine";
 
 /**
  * ─── UCI Reference ──────────────────────────────────────────────────────
@@ -90,7 +90,6 @@ export function createEngine() {
         value: parseInt(cpMatch[1], 10),
       });
       logStep("←", `→ onEval(cp ${cpMatch[1]})`);
-      return;
     }
 
     // Evaluation score (mate): "info ... score mate 3"
@@ -101,7 +100,26 @@ export function createEngine() {
         value: parseInt(mateMatch[1], 10),
       });
       logStep("←", `→ onEval(mate ${mateMatch[1]})`);
-      return;
+    }
+
+    // Analysis data (depth, nodes, nps, PV)
+    if (currentCallbacks.onAnalysis && (line.includes("depth") || line.includes("nodes"))) {
+      const depthMatch = line.match(/\bdepth (\d+)/);
+      const nodesMatch = line.match(/\bnodes (\d+)/);
+      const npsMatch = line.match(/\bnps (\d+)/);
+      const pvMatch = line.match(/\bpv (.+)$/);
+
+      if (depthMatch || nodesMatch) {
+        const analysis: AnalysisData = {
+          depth: depthMatch ? parseInt(depthMatch[1], 10) : 0,
+          nodes: nodesMatch ? parseInt(nodesMatch[1], 10) : 0,
+          nps: npsMatch ? parseInt(npsMatch[1], 10) : 0,
+        };
+        if (pvMatch) {
+          analysis.pv = pvMatch[1].split(" ");
+        }
+        currentCallbacks.onAnalysis(analysis);
+      }
     }
 
     // Best move: "bestmove e2e4" or "bestmove e2e4 ponder d7d5"

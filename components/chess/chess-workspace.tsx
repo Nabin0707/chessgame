@@ -31,10 +31,15 @@ import {
 } from "@/lib/chess/game";
 
 import { createEngine } from "@/lib/engine/stockfish";
+import { createSoundEngine } from "@/lib/chess/sound";
+import { useClock } from "@/hooks/useClock";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { TIME_CONTROLS } from "@/lib/chess/clock";
 
 import type { GameInstance } from "@/lib/chess/game";
 import type { Engine } from "@/lib/engine/stockfish";
-import type { EvalScore } from "@/types/engine";
+import type { EvalScore, AnalysisData } from "@/types/engine";
+import type { MoveRecord, GameStatus } from "@/types/chess";
 
 export function ChessWorkspace() {
   /* ── Game state ──────────────────────────────────────────────────── */
@@ -59,6 +64,31 @@ export function ChessWorkspace() {
     gameStatus.kind === "stalemate" ||
     gameStatus.kind === "draw";
 
+  /* ── Board orientation (flip) ────────────────────────────────────── */
+
+  const [boardOrientation, setBoardOrientation] = useState<"white" | "black">("white");
+
+  const handleFlipBoard = useCallback(() => {
+    setBoardOrientation((prev) => (prev === "white" ? "black" : "white"));
+  }, []);
+
+  /* ── Sound engine ────────────────────────────────────────────────── */
+
+  const soundEngineRef = useRef(createSoundEngine());
+
+  /* ── Clock ───────────────────────────────────────────────────────── */
+
+  const {
+    timerState,
+    start: clockStart,
+    pause: clockPause,
+    resume: clockResume,
+    switchTurn: clockSwitchTurn,
+    reset: clockReset,
+    setTimeControl,
+    isPaused: clockIsPaused,
+  } = useClock(TIME_CONTROLS["unlimited"]);
+
   /* ── Engine state (display evaluation) ───────────────────────────── */
 
   const engineRef = useRef<Engine | null>(null);
@@ -67,9 +97,12 @@ export function ChessWorkspace() {
   >("idle");
   const [evalScore, setEvalScore] = useState<EvalScore | null>(null);
   const [evalIsThinking, setEvalIsThinking] = useState(false);
-  const [engineErrorMessage, setEngineErrorMessage] = useState<
-    string | null
-  >(null);
+  const [engineErrorMessage, setEngineErrorMessage] = useState<string | null>(null);
+
+  /* ── Analysis data (depth, nodes, speed, bestMove) ──────────────── */
+
+  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
+  const [bestMove, setBestMove] = useState<string | null>(null);
 
   /* ── Opponent engine state ───────────────────────────────────────── */
 
@@ -79,6 +112,10 @@ export function ChessWorkspace() {
   /* ── Game tracking (prevents double-recording in memory) ──────────── */
 
   const gameRecordedRef = useRef(false);
+
+  /* ── Game-over result from resign / draw ─────────────────────────── */
+
+  const [gameOverMessage, setGameOverMessage] = useState<string | null>(null);
 
   /* ── Record game outcome when it ends ────────────────────────────── */
 
@@ -109,7 +146,6 @@ export function ChessWorkspace() {
         avgPawnPushDistance: 0,
       });
       saveMemory(updated);
-      console.log("[MEMORY] recorded game outcome:", outcome, "opening:", opening, "totalGames:", updated.stats.gamesPlayed);
     }
     if (!isGameOver) {
       gameRecordedRef.current = false;
@@ -131,14 +167,28 @@ export function ChessWorkspace() {
     return "endgame";
   }
 
+  /* ── Find king square for check highlight ────────────────────────── */
+
+  const checkSquare = useMemo<string | null>(() => {
+    if (gameStatus.kind !== "check") return null;
+    const board = gameRef.current.board();
+    const turn = gameStatus.turn;
+    for (const row of board) {
+      for (const sq of row) {
+        if (sq && sq.type === "k" && sq.color === turn) {
+          return sq.square as string;
+        }
+      }
+    }
+    return null;
+  }, [gameStatus]);
+
   /* ── Initialize orchestrator once ────────────────────────────────── */
 
   useEffect(() => {
     const fetchFn = async (
       item: import("@/lib/ai/orchestrator/types").CommentaryQueueItem,
     ): Promise<CommentaryResult> => {
-      console.log("[ORCHESTRATOR] fetching commentary for move:", item.lastMove);
-
       try {
         const res = await fetch("/api/ai/commentary", {
           method: "POST",
@@ -197,7 +247,6 @@ export function ChessWorkspace() {
           break;
         }
         case "skipped":
-          // Silently discard — position moved on.
           break;
       }
     });
@@ -248,21 +297,11 @@ export function ChessWorkspace() {
     }
 
     const currentFen = getFen(gameRef.current);
-    console.log(
-      "[OPPONENT] requesting best move for:",
-      currentFen.slice(0, 50) + "…",
-    );
 
     engine.getBestMove(currentFen, {
       onBestMove: (move: string) => {
-        const statusBefore = getGameStatus(gameRef.current);
-        console.log(
-          "[OPPONENT onBestMove] received move:", move,
-          "game turn:", "turn" in statusBefore ? statusBefore.turn : "unknown",
-        );
 
         if (move === "(none)") {
-          console.log("[OPPONENT] move is (none), clearing flags");
           pendingEngineMoveRef.current = false;
           setIsAwaitingEngineMove(false);
           return;
@@ -272,19 +311,23 @@ export function ChessWorkspace() {
         const to = move.slice(2, 4);
         const promotion = move.length > 4 ? move.slice(4, 5) : undefined;
 
-        console.log("[OPPONENT] trying makeMove:", from, "→", to, "promotion:", promotion);
-
         const result = makeMove(gameRef.current, from, to, promotion);
-        console.log("[OPPONENT] makeMove result:", result.success ? "SUCCESS" : "FAILED", result.error || "");
 
         if (result.success) {
           setRevision((r) => r + 1);
 
+          // Play sound for engine move
+          const lastMoves = getMoveHistory(gameRef.current);
+          const last = lastMoves[lastMoves.length - 1];
+          const status = getGameStatus(gameRef.current);
+          playSoundForMove(last, status, soundEngineRef.current);
+
+          clockSwitchTurn();
+
           pendingEngineMoveRef.current = false;
           setIsAwaitingEngineMove(false);
-          console.log("[OPPONENT] move applied, flags cleared");
         } else {
-          console.log("[OPPONENT] move FAILED, keeping flags set — waiting for real bestmove");
+          // Keep waiting for the real bestmove
         }
       },
       onError: (error: string) => {
@@ -293,7 +336,7 @@ export function ChessWorkspace() {
         setIsAwaitingEngineMove(false);
       },
     }, { depth: 10 });
-  }, [engineStatus]);
+  }, [engineStatus, clockSwitchTurn]);
 
   /* ── After engine initializes, trigger opponent if needed ──────────── */
 
@@ -301,20 +344,44 @@ export function ChessWorkspace() {
     if (engineStatus !== "ready") return;
 
     const status = getGameStatus(gameRef.current);
-    if (status.turn === "b" && (status.kind === "playing" || status.kind === "check")) {
-      console.log("[ENGINE_READY] engine became ready — triggering opponent move (user moved early)");
+    if ((status.kind === "playing" || status.kind === "check") && status.turn === "b") {
       pendingEngineMoveRef.current = true;
       triggerEngineMove();
-    } else {
-      console.log("[ENGINE_READY] engine ready, turn is:", status.turn);
     }
   }, [engineStatus, triggerEngineMove]);
+
+  /* ── Sound helper ───────────────────────────────────────────────── */
+
+  function playSoundForMove(
+    move: MoveRecord | undefined,
+    status: GameStatus,
+    engine: ReturnType<typeof createSoundEngine>,
+  ): void {
+    if (!move) return;
+
+    const flags = move.flags;
+
+    if (status.kind === "checkmate") {
+      engine.play("checkmate");
+    } else if (status.kind === "check") {
+      engine.play("check");
+    } else if (status.kind === "draw") {
+      engine.play("draw");
+    } else if (flags.includes("p")) {
+      engine.play("promotion");
+    } else if (flags.includes("k") || flags.includes("q")) {
+      engine.play("castle");
+    } else if (flags.includes("c") || flags.includes("e")) {
+      engine.play("capture");
+    } else {
+      engine.play("move");
+    }
+  }
 
   /* ── Handle user moves ───────────────────────────────────────────── */
 
   const handleMove = useCallback(
     (from: string, to: string): boolean => {
-      console.log("[HANDLE MOVE] called:", from, "→", to, "engineStatus:", engineStatus, "pending:", pendingEngineMoveRef.current);
       if (pendingEngineMoveRef.current) return false;
 
       const result = makeMove(gameRef.current, from, to);
@@ -322,6 +389,20 @@ export function ChessWorkspace() {
 
       pendingEngineMoveRef.current = true;
       setRevision((r) => r + 1);
+
+      // Start clock on first move
+      if (!timerState.started) {
+        clockStart();
+      }
+
+      // Play sound for this move
+      const history = getMoveHistory(gameRef.current);
+      const lastMove = history[history.length - 1];
+      const currentStatus = getGameStatus(gameRef.current);
+      playSoundForMove(lastMove, currentStatus, soundEngineRef.current);
+
+      // Switch clock turn
+      clockSwitchTurn();
 
       const status = getGameStatus(gameRef.current);
       const isActive =
@@ -342,7 +423,7 @@ export function ChessWorkspace() {
       const lastRecord = currentHistory[currentHistory.length - 1];
       const inCheck =
         status.kind === "check" ||
-        ("inCheck" in status && status.inCheck);
+        ("inCheck" in status && (status as any).inCheck);
       const isGameOver =
         status.kind === "checkmate" ||
         status.kind === "stalemate" ||
@@ -350,22 +431,28 @@ export function ChessWorkspace() {
       const isCapture = !!lastRecord?.captured;
       const isCheckmate = status.kind === "checkmate";
 
-      // Update orchestrator so it can discard stale responses.
+      // Safe access to player color — use the original turn from before
+      // the move if status doesn't carry it (game-over states).
+      const playerColor =
+        "turn" in status
+          ? status.turn === "w"
+            ? "b"
+            : "w"
+          : ("b" as const);
+
       orchestrator?.updateCurrentFen(currentFen);
 
-      // Build memory context for adaptive commentary
       const memory = loadMemory();
       const memoryContext =
         memory.stats.gamesPlayed > 0
           ? buildMemoryContext(memory).summary
           : undefined;
 
-      // Enqueue the request (orchestrator handles cooldown, merging, etc.)
       orchestrator?.enqueue({
         fen: currentFen,
         lastMove: lastRecord?.san ?? "",
         moveNumber: Math.ceil(currentHistory.length / 2),
-        playerColor: status.turn === "w" ? "b" : "w",
+        playerColor,
         moveHistory: currentHistory,
         evalScore: null,
         evalDepth: 18,
@@ -376,12 +463,11 @@ export function ChessWorkspace() {
         isCheckmate,
         personalityId: getPersonalitySetting(),
         memoryContext,
-        timestamp: Date.now(),
       });
 
       return true;
     },
-    [triggerEngineMove, engineStatus],
+    [triggerEngineMove, engineStatus, timerState.started, clockStart, clockSwitchTurn],
   );
 
   /* ── Legal move helper for board highlighting ─────────────────────── */
@@ -395,6 +481,95 @@ export function ChessWorkspace() {
     }
   }, []);
 
+  /* ── Record game for resign/draw ─────────────────────────────────── */
+
+  const recordGameEnd = useCallback((outcome: "win" | "loss" | "draw") => {
+    if (gameRecordedRef.current) return;
+    gameRecordedRef.current = true;
+    const memory = loadMemory();
+    const history = getMoveHistory(gameRef.current);
+    const movesSan = history.map((m) => m.san).join(" ");
+    const opening = detectOpeningFromHistory(movesSan);
+
+    const updated = recordGame(memory, {
+      outcome,
+      opening,
+      totalMoves: history.length,
+      playerColor: "w",
+      blunders: 0,
+      mistakes: 0,
+      inaccuracies: 0,
+      queenLost: false,
+      castled: false,
+      earlyQueenMove: false,
+      avgPawnPushDistance: 0,
+    });
+    saveMemory(updated);
+  }, []);
+
+  /* ── Handle resign ───────────────────────────────────────────────── */
+
+  const handleResign = useCallback(() => {
+    if (isGameOver) return;
+    recordGameEnd("loss");
+    gameRef.current = resetGame();
+    setRevision((r) => r + 1);
+    setEngineStatus("loading");
+    clockReset();
+    setGameOverMessage("You resigned. Black wins!");
+    setCommentaryState({ kind: "idle" });
+    soundEngineRef.current.play("checkmate");
+    pendingEngineMoveRef.current = false;
+    setIsAwaitingEngineMove(false);
+
+    // Re-initialize engine
+    engineRef.current
+      ?.initialize()
+      .then(() => setEngineStatus("ready"))
+      .catch(() => setEngineStatus("error"));
+  }, [isGameOver, recordGameEnd, clockReset]);
+
+  /* ── Handle offer draw ───────────────────────────────────────────── */
+
+  const handleOfferDraw = useCallback(() => {
+    if (isGameOver) return;
+    recordGameEnd("draw");
+    gameRef.current = resetGame();
+    setRevision((r) => r + 1);
+    setEngineStatus("loading");
+    clockReset();
+    setGameOverMessage("Game drawn by agreement.");
+    setCommentaryState({ kind: "idle" });
+    soundEngineRef.current.play("draw");
+    pendingEngineMoveRef.current = false;
+    setIsAwaitingEngineMove(false);
+
+    engineRef.current
+      ?.initialize()
+      .then(() => setEngineStatus("ready"))
+      .catch(() => setEngineStatus("error"));
+  }, [isGameOver, recordGameEnd, clockReset]);
+
+  /* ── Handle import (PGN/FEN) ─────────────────────────────────────── */
+
+  const handleImport = useCallback(
+    (newGame: GameInstance) => {
+      gameRef.current = newGame;
+      setRevision((r) => r + 1);
+      clockReset();
+      setCommentaryState({ kind: "idle" });
+      pendingEngineMoveRef.current = false;
+      setIsAwaitingEngineMove(false);
+      setGameOverMessage(null);
+      setEvalScore(null);
+      setEvalIsThinking(false);
+      setAnalysisData(null);
+      setBestMove(null);
+      gameRecordedRef.current = false;
+    },
+    [clockReset],
+  );
+
   /* ── Handle new game ─────────────────────────────────────────────── */
 
   const handleNewGame = useCallback(() => {
@@ -402,22 +577,27 @@ export function ChessWorkspace() {
       clearTimeout(debounceRef.current);
     }
     engineRef.current?.stop();
-    engineRef.current?.stop();
 
     pendingEngineMoveRef.current = false;
     setIsAwaitingEngineMove(false);
     setEvalScore(null);
     setEvalIsThinking(false);
+    setAnalysisData(null);
+    setBestMove(null);
+    setGameOverMessage(null);
     gameRecordedRef.current = false;
 
     gameRef.current = resetGame();
     setRevision((r) => r + 1);
 
-    // Reset orchestrator and clear commentary.
+    clockReset();
+    setBoardOrientation("white");
+
     orchestratorRef.current?.reset();
     orchestratorRef.current?.updateCurrentFen(getFen(gameRef.current));
     setCommentaryState({ kind: "idle" });
-  }, []);
+    soundEngineRef.current.play("game-start");
+  }, [clockReset]);
 
   /* ── Handle undo ─────────────────────────────────────────────────── */
 
@@ -437,10 +617,23 @@ export function ChessWorkspace() {
         triggerEngineMove();
       }
 
-      // Clear commentary after undo since position changed.
       setCommentaryState({ kind: "idle" });
     }
   }, [isAwaitingEngineMove, triggerEngineMove]);
+
+  /* ── Keyboard shortcuts ──────────────────────────────────────────── */
+
+  const shortcuts = useMemo(
+    () => ({
+      n: handleNewGame,
+      u: handleUndo,
+      f: handleFlipBoard,
+      m: () => soundEngineRef.current.toggle(),
+      r: handleResign,
+    }),
+    [handleNewGame, handleUndo, handleFlipBoard, handleResign],
+  );
+  useKeyboardShortcuts(shortcuts, !boardDisabled);
 
   /* ── Display evaluation (debounced) ──────────────────────────────── */
 
@@ -466,8 +659,13 @@ export function ChessWorkspace() {
           setEvalScore(score);
           setEvalIsThinking(false);
         },
-        onBestMove: () => {
+        onBestMove: (move: string) => {
           setEvalIsThinking(false);
+          // Extract best move in algebraic notation from UCI
+          setBestMove(move);
+        },
+        onAnalysis: (data: AnalysisData) => {
+          setAnalysisData(data);
         },
       });
     }, 400);
@@ -483,6 +681,18 @@ export function ChessWorkspace() {
     };
   }, [fen, engineStatus]);
 
+  /* ── Derive lastMove from history ──────────────────────────────── */
+
+  const lastMove = useMemo(() => {
+    if (moveHistory.length === 0) return null;
+    const last = moveHistory[moveHistory.length - 1];
+    return { from: last.from, to: last.to };
+  }, [moveHistory]);
+
+  /* ── Responsive visibility ────────────────────────────────────────── */
+
+  const [mobilePanel, setMobilePanel] = useState<"sidebar" | "info" | null>(null);
+
   /* ── Render ──────────────────────────────────────────────────────── */
 
   return (
@@ -490,8 +700,9 @@ export function ChessWorkspace() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="mx-auto flex w-full max-w-7xl flex-1 gap-4 p-4 lg:grid lg:grid-cols-[280px_1fr_280px] lg:gap-6 lg:p-6"
+      className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-4 lg:grid lg:grid-cols-[280px_1fr_280px] lg:gap-6 lg:p-6"
     >
+      {/* Desktop sidebar */}
       <ChessSidebar
         className="hidden lg:flex"
         moveHistory={moveHistory}
@@ -499,15 +710,110 @@ export function ChessWorkspace() {
         onNewGame={handleNewGame}
         onUndo={handleUndo}
         isAwaitingEngineMove={isAwaitingEngineMove}
+        gameRef={gameRef}
+        revision={revision}
+        boardFlipped={boardOrientation === "black"}
+        onFlipBoard={handleFlipBoard}
+        onResign={handleResign}
+        onOfferDraw={handleOfferDraw}
+        timerState={timerState}
+        onClockStart={clockStart}
+        onClockPause={clockPause}
+        onClockResume={clockResume}
+        clockIsPaused={clockIsPaused}
+        onTimeControlChange={setTimeControl}
+        gameOver={isGameOver || !!gameOverMessage}
+        onImport={handleImport}
+        visible={true}
       />
 
-      <ChessBoardContainer
-        fen={fen}
-        onMove={handleMove}
-        disabled={boardDisabled}
-        getLegalMovesForSquare={getLegalMovesForSquare}
-      />
+      {/* Board + Mobile toggles */}
+      <div className="flex flex-col items-center gap-3">
+        {/* Mobile panel toggle buttons */}
+        <div className="flex w-full gap-2 lg:hidden">
+          <button
+            onClick={() => setMobilePanel(mobilePanel === "sidebar" ? null : "sidebar")}
+            className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium"
+          >
+            {mobilePanel === "sidebar" ? "Hide Controls" : "Show Controls"}
+          </button>
+          <button
+            onClick={() => setMobilePanel(mobilePanel === "info" ? null : "info")}
+            className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium"
+          >
+            {mobilePanel === "info" ? "Hide Info" : "Show Info"}
+          </button>
+        </div>
 
+        <ChessBoardContainer
+          fen={fen}
+          onMove={handleMove}
+          disabled={boardDisabled}
+          getLegalMovesForSquare={getLegalMovesForSquare}
+          lastMove={lastMove}
+          checkSquare={checkSquare}
+          boardOrientation={boardOrientation}
+        />
+
+        {gameOverMessage && (
+          <div className="rounded-lg bg-primary/10 px-4 py-2 text-center text-sm font-medium">
+            {gameOverMessage}
+          </div>
+        )}
+      </div>
+
+      {/* Mobile panels */}
+      {mobilePanel === "sidebar" && (
+        <div className="lg:hidden">
+          <ChessSidebar
+            className=""
+            moveHistory={moveHistory}
+            gameStatus={gameStatus}
+            onNewGame={handleNewGame}
+            onUndo={handleUndo}
+            isAwaitingEngineMove={isAwaitingEngineMove}
+            gameRef={gameRef}
+            revision={revision}
+            boardFlipped={boardOrientation === "black"}
+            onFlipBoard={handleFlipBoard}
+            onResign={handleResign}
+            onOfferDraw={handleOfferDraw}
+            timerState={timerState}
+            onClockStart={clockStart}
+            onClockPause={clockPause}
+            onClockResume={clockResume}
+            clockIsPaused={clockIsPaused}
+            onTimeControlChange={setTimeControl}
+            gameOver={isGameOver || !!gameOverMessage}
+            onImport={handleImport}
+            visible={true}
+          />
+        </div>
+      )}
+
+      {mobilePanel === "info" && (
+        <div className="lg:hidden">
+          <ChessInfoPanel
+            className=""
+            gameStatus={gameStatus}
+            evalScore={evalScore}
+            evalIsThinking={evalIsThinking}
+            engineStatus={engineStatus}
+            engineErrorMessage={engineErrorMessage}
+            isAwaitingEngineMove={isAwaitingEngineMove}
+            commentaryState={commentaryState}
+            onRetryCommentary={() => {}}
+            analysisDepth={analysisData?.depth}
+            analysisNodes={analysisData?.nodes}
+            analysisSpeed={analysisData?.nps}
+            analysisBestMove={bestMove ?? undefined}
+            soundEngine={soundEngineRef.current}
+            visible={true}
+          />
+        </div>
+      )}
+
+      {/* Desktop info panel */}
       <ChessInfoPanel
         className="hidden lg:flex"
         gameStatus={gameStatus}
@@ -517,9 +823,13 @@ export function ChessWorkspace() {
         engineErrorMessage={engineErrorMessage}
         isAwaitingEngineMove={isAwaitingEngineMove}
         commentaryState={commentaryState}
-        onRetryCommentary={() => {
-          /* Orchestrator handles retry via next enqueue */
-        }}
+        onRetryCommentary={() => {}}
+        analysisDepth={analysisData?.depth}
+        analysisNodes={analysisData?.nodes}
+        analysisSpeed={analysisData?.nps}
+        analysisBestMove={bestMove ?? undefined}
+        soundEngine={soundEngineRef.current}
+        visible={true}
       />
     </motion.div>
   );

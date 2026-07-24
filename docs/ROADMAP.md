@@ -201,39 +201,20 @@
 - [x] Existing M7 memory types preserved in types-legacy.ts
 - [x] 🔑 **AI references player history naturally across games**
 
-### Milestone 15: Post-Game Analysis
-⏱ 3 days
+### Milestone 15: Complete Chess Experience ✅
+⏱ 8 days
 
-- [ ] Create `AnalysisPage` at `app/(main)/analysis/page.tsx`
-- [ ] Create `PostGameSummary.tsx`:
-  - Game result, accuracy %, top moves, blunders
-  - Accuracy comparison (player vs Stockfish)
-- [ ] Create `MoveNavigator.tsx` — step through game with arrows
-- [ ] Create `AnalysisPanel.tsx`:
-  - Side-by-side board and analysis
-  - Engine eval at each move
-  - Gemini commentary at key moments
-- [ ] Create `EvalGraph.tsx` — chart of evaluation over time
-- [ ] 🔑 **Complete post-mortem with engine + AI**
-
-### Milestone 16: Chat Interface
-⏱ 2 days
-
-- [ ] Create `ChatPanel.tsx`:
-  - Chat history with message bubbles
-  - Input bar with send button
-  - Loading indicator for AI response
-- [ ] Chat context includes current position and game history
-- [ ] Suggested questions ("Why was that a blunder?", "What should I have played?")
-- [ ] Markdown rendering for AI responses
-- [ ] Error handling (API down, rate limited, inappropriate content)
-- [ ] 🔑 **Player can ask questions about their game in natural language**
-
----
-
-## Phase 4: Polish & Experience (Milestones 17–21)
-
-### Milestone 17: Settings & Preferences
+- [x] Captured pieces display with material balance
+- [x] Chess clock with 12 time control presets (unlimited, bullet, blitz, rapid, classical)
+- [x] PGN support (copy, download, import via dialog)
+- [x] FEN support (copy, import via dialog)
+- [x] Sound system with Web Audio API (7 event sounds, mute/unmute toggle)
+- [x] Board improvements (last move highlight, check highlight, legal move indicators)
+- [x] Enhanced game controls (flip board, resign, offer draw)
+- [x] Analysis tools (eval bar animation, depth, nodes, speed, best move)
+- [x] Keyboard shortcuts (N/U/F/M/R)
+- [x] Responsive mobile layout with toggleable panels
+- [x] 🔑 **Complete chess experience with all gameplay features**
 ⏱ 2 days
 
 - [ ] Create Zustand `settingsStore` with persistence

@@ -18,9 +18,18 @@ import {
   Plus,
   History,
   Swords,
+  FlipHorizontal,
+  Flag,
+  Handshake,
 } from "lucide-react";
 
+import { CapturedPiecesCard } from "@/components/chess/CapturedPiecesCard";
+import { ChessClock } from "@/components/chess/ChessClock";
+import { PgnTools } from "@/components/chess/PgnTools";
+
 import type { MoveRecord, GameStatus } from "@/types/chess";
+import type { GameInstance } from "@/lib/chess/game";
+import type { TimeControl, TimerState } from "@/lib/chess/clock";
 
 interface ChessSidebarProps {
   className?: string;
@@ -29,6 +38,33 @@ interface ChessSidebarProps {
   onNewGame: () => void;
   onUndo: () => void;
   isAwaitingEngineMove?: boolean;
+
+  /* Captured pieces */
+  gameRef: React.RefObject<GameInstance | null>;
+  revision: number;
+
+  /* Flip board */
+  boardFlipped: boolean;
+  onFlipBoard: () => void;
+
+  /* Resign / Draw */
+  onResign: () => void;
+  onOfferDraw: () => void;
+
+  /* Clock */
+  timerState: TimerState;
+  onClockStart: () => void;
+  onClockPause: () => void;
+  onClockResume: () => void;
+  clockIsPaused: boolean;
+  onTimeControlChange: (tc: TimeControl) => void;
+  gameOver: boolean;
+
+  /* Import */
+  onImport: (newGame: GameInstance) => void;
+
+  /* Sidebar visibility */
+  visible: boolean;
 }
 
 export function ChessSidebar({
@@ -38,23 +74,56 @@ export function ChessSidebar({
   onNewGame,
   onUndo,
   isAwaitingEngineMove = false,
+  gameRef,
+  revision,
+  boardFlipped,
+  onFlipBoard,
+  onResign,
+  onOfferDraw,
+  timerState,
+  onClockStart,
+  onClockPause,
+  onClockResume,
+  clockIsPaused,
+  onTimeControlChange,
+  gameOver,
+  onImport,
+  visible,
 }: ChessSidebarProps) {
-  const canUndo = moveHistory.length > 0 && !isAwaitingEngineMove;
+  const canUndo = moveHistory.length > 0 && !isAwaitingEngineMove && !gameOver;
   const isGameOver = gameStatus.kind !== "playing" && gameStatus.kind !== "check";
+  const canResign = !isGameOver && moveHistory.length > 0;
+
+  if (!visible) return null;
 
   return (
     <aside
-      className={cn("flex flex-col gap-4", className)}
+      className={cn("flex flex-col gap-4 overflow-y-auto", className)}
       aria-label="Game controls"
     >
       <GameControlsCard
         onNewGame={onNewGame}
         onUndo={onUndo}
+        onFlipBoard={onFlipBoard}
+        onResign={onResign}
+        onOfferDraw={onOfferDraw}
         canUndo={canUndo}
+        boardFlipped={boardFlipped}
+        canResign={canResign}
         isGameOver={isGameOver}
       />
+      <ChessClock
+        timerState={timerState}
+        onStart={onClockStart}
+        onPause={onClockPause}
+        onResume={onClockResume}
+        isPaused={clockIsPaused}
+        onTimeControlChange={onTimeControlChange}
+        gameOver={gameOver}
+      />
+      <PgnTools gameRef={gameRef} onImport={onImport} />
+      <CapturedPiecesCard gameRef={gameRef} revision={revision} />
       <MoveHistoryCard moveHistory={moveHistory} />
-      <CapturedPiecesCard />
     </aside>
   );
 }
@@ -62,14 +131,24 @@ export function ChessSidebar({
 interface GameControlsCardProps {
   onNewGame: () => void;
   onUndo: () => void;
+  onFlipBoard: () => void;
+  onResign: () => void;
+  onOfferDraw: () => void;
   canUndo: boolean;
+  boardFlipped: boolean;
+  canResign: boolean;
   isGameOver: boolean;
 }
 
 function GameControlsCard({
   onNewGame,
   onUndo,
+  onFlipBoard,
+  onResign,
+  onOfferDraw,
   canUndo,
+  boardFlipped,
+  canResign,
   isGameOver,
 }: GameControlsCardProps) {
   return (
@@ -86,15 +165,15 @@ function GameControlsCard({
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
+          {/* New Game */}
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button variant="default" size="sm" onClick={onNewGame} className="w-full gap-2">
               <Plus className="size-4" aria-hidden="true" />
-              {isGameOver ? "New Game" : "New Game"}
+              New Game
             </Button>
           </motion.div>
+
+          {/* Undo */}
           <motion.div
             whileHover={canUndo ? { scale: 1.02 } : undefined}
             whileTap={canUndo ? { scale: 0.98 } : undefined}
@@ -110,6 +189,48 @@ function GameControlsCard({
               Undo Move
             </Button>
           </motion.div>
+
+          {/* Row: Flip, Resign, Draw */}
+          <div className="grid grid-cols-3 gap-1">
+            <motion.div whileTap={{ scale: 0.95 }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onFlipBoard}
+                className="w-full gap-1 text-xs"
+                title={boardFlipped ? "View from White" : "View from Black"}
+              >
+                <FlipHorizontal className="size-3.5" aria-hidden="true" />
+                Flip
+              </Button>
+            </motion.div>
+
+            <motion.div whileTap={{ scale: 0.95 }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onResign}
+                disabled={!canResign}
+                className="w-full gap-1 text-xs"
+              >
+                <Flag className="size-3.5" aria-hidden="true" />
+                Resign
+              </Button>
+            </motion.div>
+
+            <motion.div whileTap={{ scale: 0.95 }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOfferDraw}
+                disabled={isGameOver}
+                className="w-full gap-1 text-xs"
+              >
+                <Handshake className="size-3.5" aria-hidden="true" />
+                Draw
+              </Button>
+            </motion.div>
+          </div>
         </CardContent>
       </Card>
     </motion.div>
@@ -192,29 +313,5 @@ function MovesTable({ moves }: MovesTableProps) {
         ))}
       </tbody>
     </table>
-  );
-}
-
-function CapturedPiecesCard() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, delay: 0.2 }}
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Swords className="size-4 text-primary" aria-hidden="true" />
-            Captured Pieces
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Coming soon.
-          </p>
-        </CardContent>
-      </Card>
-    </motion.div>
   );
 }

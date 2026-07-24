@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
+import { getSquareStyles } from "@/components/chess/BoardImprovements";
 
 const Chessboard = dynamic(
   () => import("react-chessboard").then((mod) => mod.Chessboard),
@@ -21,28 +22,13 @@ interface ChessBoardContainerProps {
    * Used to highlight legal moves when a piece is selected or dragged.
    */
   getLegalMovesForSquare?: (square: string) => string[];
+  /** Highlight last move squares */
+  lastMove?: { from: string; to: string } | null;
+  /** Highlight king square when in check */
+  checkSquare?: string | null;
+  /** Board orientation */
+  boardOrientation?: "white" | "black";
 }
-
-/* ─── Highlight Styles ──────────────────────────────────── */
-
-/** Semi-transparent dot shown on legal destination squares. */
-const LEGAL_MOVE_STYLE: React.CSSProperties = {
-  background: "radial-gradient(circle, rgba(0,0,0,0.25) 25%, transparent 25%)",
-  borderRadius: "50%",
-};
-
-/** Subtle highlight for the selected piece's current square. */
-const SELECTED_SQUARE_STYLE: React.CSSProperties = {
-  background: "rgba(255, 255, 0, 0.35)",
-  borderRadius: "4px",
-};
-
-/** Rounded corner hint when a legal square has a capturable piece. */
-const CAPTURE_STYLE: React.CSSProperties = {
-  background: "radial-gradient(circle at 50% 50%, transparent 70%, rgba(0,0,0,0.25) 70%)",
-  borderRadius: "4px",
-  boxShadow: "inset 0 0 0 3px rgba(0,0,0,0.25)",
-};
 
 /* ─── Component ─────────────────────────────────────────── */
 
@@ -52,6 +38,9 @@ export function ChessBoardContainer({
   onMove,
   disabled = false,
   getLegalMovesForSquare,
+  lastMove = null,
+  checkSquare = null,
+  boardOrientation = "white",
 }: ChessBoardContainerProps) {
   /* ── Selection state ─────────────────────────────────── */
 
@@ -61,22 +50,13 @@ export function ChessBoardContainer({
   /* ── Compute highlight styles ─────────────────────────── */
 
   const squareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
-    const styles: Record<string, React.CSSProperties> = {};
-
-    if (selectedSquare && legalTargets.length > 0) {
-      // Highlight the selected piece's square.
-      styles[selectedSquare] = SELECTED_SQUARE_STYLE;
-
-      // Highlight each legal destination.
-      for (const sq of legalTargets) {
-        // If there's a piece on the target, use the capture ring style.
-        // We detect this by checking if the FEN has an enemy piece there.
-        styles[sq] = LEGAL_MOVE_STYLE;
-      }
-    }
-
-    return styles;
-  }, [selectedSquare, legalTargets]);
+    return getSquareStyles({
+      lastMove,
+      checkSquare,
+      selectedSquare,
+      legalTargets,
+    });
+  }, [lastMove, checkSquare, selectedSquare, legalTargets]);
 
   /* ── Select a piece and compute legal moves ───────────── */
 
@@ -194,7 +174,7 @@ export function ChessBoardContainer({
         <Chessboard
           options={{
             position: fen,
-            boardOrientation: "white",
+            boardOrientation,
             allowDragging: !disabled,
             showNotation: true,
             squareStyles,

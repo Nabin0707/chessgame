@@ -23,9 +23,12 @@ import {
 
 import { PersonalitySelector } from "@/components/ai/PersonalitySelector";
 import { PlayerStatsCard } from "@/components/ai/PlayerStatsCard";
+import { AnalysisTools } from "@/components/chess/AnalysisTools";
+import { SoundToggle } from "@/components/chess/SoundToggle";
 
 import type { GameStatus } from "@/types/chess";
 import type { EvalScore } from "@/types/engine";
+import type { SoundEngine } from "@/lib/chess/sound";
 
 export type CommentaryState =
   | { kind: "idle" }
@@ -44,6 +47,18 @@ interface ChessInfoPanelProps {
   isAwaitingEngineMove?: boolean;
   commentaryState: CommentaryState;
   onRetryCommentary?: () => void;
+
+  /* Analysis data */
+  analysisDepth?: number;
+  analysisNodes?: number;
+  analysisSpeed?: number;
+  analysisBestMove?: string;
+
+  /* Sound */
+  soundEngine: SoundEngine;
+
+  /* Visibility */
+  visible: boolean;
 }
 
 export function ChessInfoPanel({
@@ -56,22 +71,46 @@ export function ChessInfoPanel({
   isAwaitingEngineMove = false,
   commentaryState,
   onRetryCommentary,
+  analysisDepth,
+  analysisNodes,
+  analysisSpeed,
+  analysisBestMove,
+  soundEngine,
+  visible,
 }: ChessInfoPanelProps) {
+  if (!visible) return null;
+
   return (
     <aside
-      className={cn("flex flex-col gap-4", className)}
+      className={cn("flex flex-col gap-4 overflow-y-auto", className)}
       aria-label="Game information"
     >
+      {/* Sound toggle */}
+      <div className="flex justify-end">
+        <SoundToggle soundEngine={soundEngine} />
+      </div>
+
       <AICommentaryCard
         state={commentaryState}
         onRetry={onRetryCommentary}
       />
+
+      <AnalysisTools
+        evalScore={evalScore}
+        isThinking={evalIsThinking}
+        depth={analysisDepth}
+        nodes={analysisNodes}
+        speed={analysisSpeed}
+        bestMove={analysisBestMove}
+      />
+
       <EvaluationCard
         score={evalScore}
         isThinking={evalIsThinking}
         status={engineStatus}
         errorMessage={engineErrorMessage}
       />
+
       <GameStatusCard
         status={gameStatus}
         isAwaitingEngineMove={isAwaitingEngineMove}
@@ -432,4 +471,3 @@ function formatStatusDetail(
     }
   }
 }
-

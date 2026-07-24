@@ -35,6 +35,16 @@ export interface SearchOptions {
 }
 
 /**
+ * Detailed analysis data from engine info lines.
+ */
+export interface AnalysisData {
+  depth: number;
+  nodes: number;
+  nps: number;
+  pv?: string[];
+}
+
+/**
  * Callbacks passed to evaluate() / getBestMove().
  * At least one callback must be provided to receive engine output.
  */
@@ -43,6 +53,8 @@ export interface EngineCallbacks {
   onEval?: (score: EvalScore) => void;
   /** Fired when the engine finishes its search and returns a best move. */
   onBestMove?: (move: string) => void;
+  /** Fired when analysis info (depth, nodes, nps, PV) is received. */
+  onAnalysis?: (data: AnalysisData) => void;
   /** Fired after the engine sends "readyok". */
   onReady?: () => void;
   /** Fired on engine errors. */

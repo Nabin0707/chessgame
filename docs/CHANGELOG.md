@@ -71,6 +71,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `components/ai/PlayerStatsCard.tsx` — game record grid, profile details, accuracy %, streaks, memory management (reset/export/import)
   - Existing M7 memory types preserved in `types-legacy.ts`
   - Milestone report: `reports/MILESTONE_14_SUMMARY.md`
+- Milestone 15: Complete Chess Experience — 10 gameplay and UX features for a polished chess experience
+  - `lib/chess/captured-pieces.ts`, `components/chess/CapturedPiecesCard.tsx` — captured pieces with material balance
+  - `lib/chess/clock.ts`, `hooks/useClock.ts`, `components/chess/ChessClock.tsx` — chess clock with 12 time control presets
+  - `lib/chess/notation.ts`, `components/chess/PgnTools.tsx` — PGN/FEN copy, download, import, export
+  - `lib/chess/sound.ts`, `components/chess/SoundToggle.tsx` — Web Audio API sound engine (7 event types)
+  - `components/chess/BoardImprovements.tsx` — last move highlight, check highlight, legal move indicators
+  - `components/chess/AnalysisTools.tsx` — animated eval bar with depth, nodes, speed, best move
+  - `components/chess/chess-sidebar.tsx` — enhanced game controls (flip board, resign, offer draw)
+  - `hooks/useKeyboardShortcuts.ts` — keyboard shortcuts (N/U/F/M/R) with input-field detection
+  - `types/engine.ts`, `lib/engine/stockfish.ts` — enhanced engine analysis data (depth/nodes/nps/PV)
+  - `components/chess/chess-workspace.tsx` — mobile toggle panels, responsive layout, all integrations wired
+  - Milestone report: `reports/MILESTONE_15_SUMMARY.md`
 
 ### Security
 - Gemini API key (`GEMINI_API_KEY`) is now server-side only via Next.js Route Handler — never exposed to the browser
